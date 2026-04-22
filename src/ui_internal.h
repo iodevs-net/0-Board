@@ -25,6 +25,7 @@ struct UI {
     int color_scheme_index;
     int size_index;
     bool menu_visible;
+    bool docked_top;
     bool dirty;
     bool should_close;
     

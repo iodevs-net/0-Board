@@ -73,6 +73,9 @@ void ui_show_menu(UI *ui);
 // Hide menu bar  
 void ui_hide_menu(UI *ui);
 
+// Toggle dock position (top/bottom center)
+void ui_toggle_dock_position(UI *ui);
+
 // Check if menu is visible
 bool ui_is_menu_visible(const UI *ui);
 

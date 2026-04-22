@@ -64,7 +64,7 @@ static KeyDef default_keys[] = {
     {XK_comma,     XK_less,       0, ",",  "<",  false, 7, 0},
     {XK_period,    XK_greater,    0, ".",  ">",  false, 7, 0},
     {XK_slash,     XK_question,   0, "/",  "?",  false, 7, 0},
-    {XK_Shift_R,   0,             0, "⇧",  NULL, false, 16, 0},
+    {XK_VoidSymbol, 0,             0, "↑↓",  NULL, false, 16, 0},
 
     // Row 5: Bottom — fn, ctrl, alt, cmd, space, cmd, alt, arrows
     {0,            0,             0, "fn",   NULL, true,  8, 0},
@@ -102,7 +102,8 @@ void layout_init(Layout *l) {
                  strcmp(k->label, "size") == 0 || strcmp(k->label, "⇥") == 0 ||
                  strcmp(k->label, "⌫") == 0 || strcmp(k->label, "⏎") == 0 ||
                  strcmp(k->label, "←") == 0 || strcmp(k->label, "↑") == 0 ||
-                 strcmp(k->label, "↓") == 0 || strcmp(k->label, "→") == 0)
+                 strcmp(k->label, "↓") == 0 || strcmp(k->label, "→") == 0 ||
+                 strcmp(k->label, "↑↓") == 0)
             k->flags = KEYFLAG_MODIFIER;
     }
 }

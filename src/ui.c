@@ -61,11 +61,26 @@ void ui_calculate_layout(UI *ui) {
         }
     }
 
-    // If already initialized, adjust Y to keep bottom anchored if height changed
-    if (old_height > 0 && old_height != ui->current_height) {
+    // Reposition based on docking or maintain anchor
+    if (old_height > 0) {
+        Display *dpy = x11_window_get_display(ui->window);
+        int screen_w = DisplayWidth(dpy, DefaultScreen(dpy));
+        int screen_h = DisplayHeight(dpy, DefaultScreen(dpy));
+        
         int x, y;
         x11_window_get_position(ui->window, &x, &y);
-        x11_window_move(ui->window, x, y - (ui->current_height - old_height));
+        
+        if (ui->docked_top) {
+            // Keep centered at top
+            x11_window_move(ui->window, (screen_w - ui->current_width) / 2, 0);
+        } else if (y + old_height >= screen_h - 10) {
+            // Keep centered at bottom if it was already at the bottom
+            x11_window_move(ui->window, (screen_w - ui->current_width) / 2, 
+                           screen_h - ui->current_height);
+        } else {
+            // Adjust relative to maintain anchor point
+            x11_window_move(ui->window, x, y - (ui->current_height - old_height));
+        }
     }
 
     x11_window_resize(ui->window, ui->current_width, ui->current_height);
@@ -259,6 +274,22 @@ void ui_set_size_index(UI *ui, int size_index) {
 
 void ui_show_menu(UI *ui) { if (ui) { ui->menu_visible = true; ui_calculate_layout(ui); } }
 void ui_hide_menu(UI *ui) { if (ui) { ui->menu_visible = false; ui_calculate_layout(ui); } }
+
+void ui_toggle_dock_position(UI *ui) {
+    if (!ui || !ui->window) return;
+    
+    Display *dpy = x11_window_get_display(ui->window);
+    int screen_w = DisplayWidth(dpy, DefaultScreen(dpy));
+    int screen_h = DisplayHeight(dpy, DefaultScreen(dpy));
+    
+    ui->docked_top = !ui->docked_top;
+    
+    int pos_x = (screen_w - ui->current_width) / 2;
+    int pos_y = ui->docked_top ? 0 : (screen_h - ui->current_height);
+    
+    x11_window_move(ui->window, pos_x, pos_y);
+    ui->dirty = true;
+}
 bool ui_is_menu_visible(const UI *ui) { return ui ? ui->menu_visible : false; }
 void ui_mark_dirty(UI *ui) { if (ui) ui->dirty = true; }
 bool ui_is_dirty(const UI *ui) { return ui ? ui->dirty : false; }

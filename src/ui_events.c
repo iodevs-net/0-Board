@@ -68,6 +68,8 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             if (label && strcmp(label, "fn") == 0) {
                 if (ui->menu_visible) ui_hide_menu(ui);
                 else ui_show_menu(ui);
+            } else if (label && strcmp(label, "↑↓") == 0) {
+                ui_toggle_dock_position(ui);
             } else if (ui->engine) {
                 KeySym sym = keyboard_get_keysym(ui->keyboard, i);
                 
