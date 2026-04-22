@@ -22,6 +22,8 @@ Keyboard* keyboard_create(Layout *layout) {
 void keyboard_press_key(Keyboard *kb, int key_index) {
     if (!kb || !kb->layout || key_index < 0 || key_index >= kb->layout->num_keys) return;
     
+    kb->state.pressed_key_index = key_index;
+    
     KeyDef *key = &kb->layout->keys[key_index];
     if (key->flags & KEYFLAG_SHIFT) {
         kbd_state_toggle_shift(&kb->state);
@@ -29,6 +31,13 @@ void keyboard_press_key(Keyboard *kb, int key_index) {
         kbd_state_toggle_caps(&kb->state);
     }
     
+    kb->state.dirty = true;
+}
+
+void keyboard_release_key(Keyboard *kb, int key_index) {
+    if (!kb) return;
+    (void)key_index;
+    kb->state.pressed_key_index = -1;
     kb->state.dirty = true;
 }
 
@@ -82,12 +91,12 @@ void keyboard_destroy(Keyboard *kb) {
 void keyboard_set_layout(Keyboard *kb, Layout *layout) { if (kb) kb->layout = layout; }
 void keyboard_toggle_shift(Keyboard *kb) { if (kb) kbd_state_toggle_shift(&kb->state); }
 void keyboard_toggle_caps_lock(Keyboard *kb) { if (kb) kbd_state_toggle_caps(&kb->state); }
-void keyboard_release_key(Keyboard *kb, int key_index) { (void)key_index; if (kb) kb->state.dirty = true; }
 KeyboardState keyboard_get_state(const Keyboard *kb) { 
     KeyboardState s = {0}; 
     if (kb) {
         s.current_layer = (KeyboardLayer)kb->state.active_layer;
         s.caps_lock = kb->state.caps_lock;
+        s.pressed_key_index = kb->state.pressed_key_index;
         s.dirty = kb->state.dirty;
     }
     return s; 

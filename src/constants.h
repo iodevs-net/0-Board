@@ -1,42 +1,47 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-// Keyboard constants
+// Keyboard geometry
 #define MAX_KEYS 128
-#define DASH_HEIGHT 40
-#define NUM_BUFFERED_SIZES 3
-#define MAX_FONTS_TO_SCAN 512
+#define MAX_ROWS 10
 
-// UI sizing
-#define SCREEN_WIDTH_RATIO_SMALL 0.35
-#define SCREEN_WIDTH_RATIO_MEDIUM 0.60
-#define SCREEN_WIDTH_RATIO_LARGE 0.92
-#define KEYBOARD_HEIGHT_RATIO 0.35  // height = width * ratio
-#define KEY_PADDING_RATIO 0.015     // pad = width * ratio  
-#define KEY_GAP_RATIO 0.004         // gap = width * ratio
-#define FONT_SIZE_RATIO 0.022       // font_size = width * ratio + 2
+// Screen size ratios (keyboard width = screen width * ratio)
+#define SCREEN_WIDTH_RATIO_SMALL  0.40
+#define SCREEN_WIDTH_RATIO_MEDIUM 0.62
+#define SCREEN_WIDTH_RATIO_LARGE  0.92
 
-// Menu constants
-#define MENU_BAR_HEIGHT DASH_HEIGHT
-#define MENU_OPACITY_STEP 0.1
-#define MIN_OPACITY 0.1
-#define MAX_OPACITY 1.0
+// Proportions derived from keyboard width
+#define KEYBOARD_HEIGHT_RATIO 0.38
+#define KEY_PADDING_RATIO     0.012
+#define KEY_GAP_RATIO         0.004
+#define FONT_SIZE_RATIO       0.032
+
+// Font sizing per key type
+#define LABEL_SCALE_LETTER   1.15
+#define LABEL_SCALE_MODIFIER 0.72
+#define LABEL_SCALE_SYMBOL   1.05
+
+// Drag handle
+#define DRAG_HANDLE_HEIGHT_RATIO 0.07
+#define DRAG_PILL_WIDTH          40
+#define DRAG_PILL_HEIGHT         4
+
+// Menu bar
+#define MENU_BAR_HEIGHT    36
+#define MENU_OPACITY_STEP  0.1
+#define MIN_OPACITY        0.3
+#define MAX_OPACITY        1.0
 
 // Rendering
-#define KEYBOARD_CORNER_RADIUS 12.0
-#define KEY_CORNER_RADIUS 5.0
-#define CLEAR_ALPHA 0.0
+#define KEYBOARD_CORNER_RADIUS 14.0
+#define KEY_CORNER_RADIUS       6.0
+#define KEY_SHADOW_OFFSET       1.5
+#define KEY_SHADOW_ALPHA        0.25
+#define CLEAR_ALPHA             0.0
+#define NUM_BUFFERED_SIZES      3
 
-// Color palette (grayscale values 0-1)
-#define COLOR_NEAR_BLACK 0.05
-#define COLOR_DARK_GRAY 0.12
-#define COLOR_MEDIUM_DARK_GRAY 0.20
-#define COLOR_MEDIUM_GRAY 0.35
-#define COLOR_MID_GRAY 0.50
-#define COLOR_LIGHT_GRAY 0.70
-#define COLOR_NEAR_WHITE 0.90
-
-// Layout row constants
-#define MAX_ROWS 10
+// Font path (relative to binary)
+#define FONT_PATH_PRIMARY   "assets/fonts/extras/ttf/Inter-Medium.ttf"
+#define FONT_PATH_FALLBACK  "assets/fonts/extras/ttf/Inter-Regular.ttf"
 
 #endif // CONSTANTS_H

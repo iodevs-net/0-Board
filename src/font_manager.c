@@ -1,5 +1,6 @@
 #include "font_manager.h"
-#include "constants.h"
+
+#define FM_DEFAULT_CACHE_SIZE 50
 #include <fontconfig/fontconfig.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@ struct FontManager {
 
 // Common sans-serif fonts to try first
 static const char* DEFAULT_FONT_FAMILIES[] = {
+    "Inter",
     "DejaVu Sans",
     "Liberation Sans", 
     "Roboto",
@@ -30,37 +32,42 @@ static const char* DEFAULT_FONT_FAMILIES[] = {
 
 static bool case_insensitive_contains(const char *haystack, const char *needle) {
     if (!haystack || !needle) return false;
-    
+
     const char *h = haystack;
     const char *n = needle;
-    
+
     while (*h) {
         if (tolower(*h) == tolower(*n)) {
             const char *h2 = h;
             const char *n2 = n;
-            
+
             while (*h2 && *n2 && tolower(*h2) == tolower(*n2)) {
                 h2++;
                 n2++;
             }
-            
+
             if (!*n2) {
                 return true;
             }
         }
         h++;
     }
-    
+
     return false;
 }
 
 static void load_fonts(FontManager *fm) {
-    if (fm->fonts_loaded) return;
-    
     FcConfig *cfg = FcInitLoadConfigAndFonts();
     if (!cfg) {
         fprintf(stderr, "font_manager: failed to initialize FontConfig\n");
         goto fallback;
+    }
+
+    // Register local fonts and MAKE THIS CONFIG CURRENT
+    const char *local_fonts_path = "./assets/fonts";
+    if (FcConfigAppFontAddDir(cfg, (const FcChar8*)local_fonts_path)) {
+        printf("font_manager: applying local font config from %s\n", local_fonts_path);
+        FcConfigSetCurrent(cfg);
     }
     
     FcPattern *pat = FcPatternCreate();
@@ -124,6 +131,8 @@ fallback:
         }
     }
     
+    fm->fonts_loaded = true;
+
     // Set initial font
     if (fm->config.preferred_family) {
         font_manager_set_family(fm, fm->config.preferred_family);
@@ -144,8 +153,6 @@ fallback:
             fm->current_index = 0;
         }
     }
-    
-    fm->fonts_loaded = true;
 }
 
 FontManager* font_manager_create(FontConfig *config) {
@@ -165,7 +172,7 @@ FontManager* font_manager_create(FontConfig *config) {
     } else {
         fm->config.preferred_family = NULL;
         fm->config.load_all_system_fonts = true;
-        fm->config.max_fonts_to_cache = MAX_FONTS_TO_SCAN;
+        fm->config.max_fonts_to_cache = FM_DEFAULT_CACHE_SIZE;
     }
     
     // Load fonts immediately if configured to do so

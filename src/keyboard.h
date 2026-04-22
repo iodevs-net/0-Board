@@ -21,6 +21,7 @@ typedef struct {
     bool caps_lock;
     bool num_lock;
     bool scroll_lock;
+    int pressed_key_index;
     bool dirty; // Whether visual state needs update
 } KeyboardState;
 

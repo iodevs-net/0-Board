@@ -14,6 +14,7 @@ typedef struct {
     Layer active_layer;
     bool shift_locked;
     bool caps_lock;
+    int pressed_key_index; // -1 if none
     bool dirty;
 } KbdState;
 

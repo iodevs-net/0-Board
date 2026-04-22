@@ -63,5 +63,6 @@ void kbd_state_reset(KbdState *state) {
     state->active_layer = LAYER_NORMAL;
     state->shift_locked = false;
     state->caps_lock = false;
+    state->pressed_key_index = -1;
     state->dirty = true;
 }

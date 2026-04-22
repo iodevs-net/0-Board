@@ -202,8 +202,25 @@ void x11_window_copy_area(X11Window *window, Pixmap src,
 
 void x11_window_move(X11Window *window, int x, int y) {
     if (!window || !window->display) return;
-    
+
     XMoveWindow(window->display, window->window, x, y);
+}
+
+void x11_window_get_position(X11Window *window, int *x, int *y) {
+    if (!window || !window->display) {
+        if (x) *x = 0;
+        if (y) *y = 0;
+        return;
+    }
+
+    XWindowAttributes attr;
+    if (XGetWindowAttributes(window->display, window->window, &attr)) {
+        if (x) *x = attr.x;
+        if (y) *y = attr.y;
+    } else {
+        if (x) *x = 0;
+        if (y) *y = 0;
+    }
 }
 
 void x11_window_resize(X11Window *window, int width, int height) {

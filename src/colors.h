@@ -1,30 +1,28 @@
 #ifndef COLORS_H
 #define COLORS_H
 
-#include <stdbool.h>
+#include "renderer.h"
 
-// Color scheme definition
+// Color scheme definition — real RGBA, not grayscale
 typedef struct {
-    double background;
-    double key_normal;
-    double key_modifier;
-    double text_light;    // for dark backgrounds
-    double text_dark;     // for light backgrounds
+    Color background;
+    Color key_normal;
+    Color key_modifier;
+    Color key_special;
+    Color text_primary;
+    Color text_secondary;
+    Color key_pressed;
+    Color accent;
+    Color drag_handle;
+    Color key_shadow;
 } ColorScheme;
 
-// Built-in color schemes
 typedef enum {
-    COLOR_SCHEME_DARK,
-    COLOR_SCHEME_LIGHT,
-    COLOR_SCHEME_BLUE_GRAY,
-    COLOR_SCHEME_AMBER,
+    COLOR_SCHEME_SPACE_GRAY,
+    COLOR_SCHEME_SILVER,
     NUM_COLOR_SCHEMES
 } ColorSchemeId;
 
-// Get a predefined color scheme
-ColorScheme color_scheme_get(ColorSchemeId id);
-
-// Helper to determine text color based on background brightness
-bool should_use_light_text(double background_brightness);
+ColorScheme color_scheme_get(int id);
 
 #endif // COLORS_H

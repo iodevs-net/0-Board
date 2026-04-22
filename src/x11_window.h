@@ -78,6 +78,9 @@ void x11_window_copy_area(X11Window *window, Pixmap src,
 // Move window
 void x11_window_move(X11Window *window, int x, int y);
 
+// Get window position
+void x11_window_get_position(X11Window *window, int *x, int *y);
+
 // Resize window
 void x11_window_resize(X11Window *window, int width, int height);
 
