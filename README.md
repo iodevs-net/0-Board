@@ -4,6 +4,7 @@ A modern virtual keyboard built from scratch with a focus on clean architecture,
 
 ## Philosophy
 
+- **Pure C Architecture**: Escrito en C99 puro para máxima eficiencia, portabilidad y un consumo de recursos cercano a cero. Sin dependencias de C++ ni runtimes pesados.
 - **Clean Architecture**: Dependency injection, no global state, SRP (modules ≤100 lines).
 - **Maintainability**: Self-documenting code, constants in `constants.h`, error handling via `error_exit()`.
 - **IA-agent Readability**: Predictable structure, minimal magic numbers, clear interfaces.
