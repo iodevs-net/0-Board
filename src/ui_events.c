@@ -26,9 +26,10 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (wx > ui->current_width - edge) on_edge = true;
 
     if (button == 2 || (button == 1 && on_edge)) {
-        x11_window_get_position(ui->window, &ui->win_start_x, &ui->win_start_y);
-        ui->drag_start_root_x = rx;
-        ui->drag_start_root_y = ry;
+        int win_x, win_y;
+        x11_window_get_position(ui->window, &win_x, &win_y);
+        ui->drag_offset_x = rx - win_x;
+        ui->drag_offset_y = ry - win_y;
         ui->dragging = true;
         return;
     }
@@ -96,10 +97,7 @@ void ui_handle_button_release(UI *ui, int x, int y, int button) {
 void ui_handle_motion(UI *ui, int rx, int ry) {
     if (!ui || !ui->dragging || !ui->window) return;
 
-    int dx = rx - ui->drag_start_root_x;
-    int dy = ry - ui->drag_start_root_y;
-
-    x11_window_move(ui->window, ui->win_start_x + dx, ui->win_start_y + dy);
+    x11_window_move(ui->window, rx - ui->drag_offset_x, ry - ui->drag_offset_y);
     // Do NOT set dirty — window move doesn't change content
 }
 

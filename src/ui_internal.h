@@ -36,8 +36,7 @@ struct UI {
     
     // Interaction state
     bool dragging;
-    int drag_start_root_x, drag_start_root_y;
-    int win_start_x, win_start_y;
+    int drag_offset_x, drag_offset_y;
 };
 
 // Internal helpers

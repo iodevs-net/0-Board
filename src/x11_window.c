@@ -213,14 +213,13 @@ void x11_window_get_position(X11Window *window, int *x, int *y) {
         return;
     }
 
-    XWindowAttributes attr;
-    if (XGetWindowAttributes(window->display, window->window, &attr)) {
-        if (x) *x = attr.x;
-        if (y) *y = attr.y;
-    } else {
-        if (x) *x = 0;
-        if (y) *y = 0;
-    }
+    Window child;
+    int root_x, root_y;
+    XTranslateCoordinates(window->display, window->window, DefaultRootWindow(window->display),
+                          0, 0, &root_x, &root_y, &child);
+    
+    if (x) *x = root_x;
+    if (y) *y = root_y;
 }
 
 void x11_window_resize(X11Window *window, int width, int height) {
