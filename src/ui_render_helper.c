@@ -131,17 +131,26 @@ void ui_render_draw_menu_bar(Renderer *renderer, int win_width,
     Color div_color = color_with_opacity(scheme.key_modifier, opacity * 0.5);
     renderer_draw_rectangle(renderer, divider, div_color, 0);
 
-    char menu_text[256];
-    snprintf(menu_text, sizeof(menu_text),
-            "[-]  opacity  [+]     [theme]");
+    char menu_left[128];
+    snprintf(menu_left, sizeof(menu_left), "[-] opacity [+]    [theme]");
+    
+    char menu_right[64];
+    snprintf(menu_right, sizeof(menu_right), "[x]");
 
     FontSpec font = {
-        "Inter", font_size * 0.65, false, false
+        "Inter", font_size * 0.75, false, false
     };
     Color text_color = color_with_opacity(scheme.text_secondary, opacity);
-    Rectangle text_bounds = {20, 0, win_width - 40, MENU_BAR_HEIGHT};
-    renderer_draw_text(renderer, menu_text, text_bounds, font, text_color,
+    
+    // Left controls
+    Rectangle left_bounds = {20, 0, win_width - 40, MENU_BAR_HEIGHT};
+    renderer_draw_text(renderer, menu_left, left_bounds, font, text_color,
                       ALIGN_LEFT, VALIGN_CENTER);
+                      
+    // Right close button
+    Rectangle right_bounds = {20, 0, win_width - 40, MENU_BAR_HEIGHT};
+    renderer_draw_text(renderer, menu_right, right_bounds, font, text_color,
+                      ALIGN_RIGHT, VALIGN_CENTER);
 }
 
 void ui_render_draw_drag_handle(Renderer *renderer, int win_width,

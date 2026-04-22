@@ -15,7 +15,8 @@ void ui_calculate_layout(UI *ui) {
     Layout *layout = keyboard_get_layout(ui->keyboard);
     Display *dpy = x11_window_get_display(ui->window);
     int screen_w = DisplayWidth(dpy, DefaultScreen(dpy));
-    int screen_h = DisplayHeight(dpy, DefaultScreen(dpy));
+
+    int old_height = ui->current_height;
 
     double ratios[] = {SCREEN_WIDTH_RATIO_SMALL, SCREEN_WIDTH_RATIO_MEDIUM, SCREEN_WIDTH_RATIO_LARGE};
     int kb_width = screen_w * ratios[ui->size_index];
@@ -32,13 +33,15 @@ void ui_calculate_layout(UI *ui) {
     layout_engine_calculate(layout, ui->current_width, ui->current_height,
                            menu_offset, ui->key_bounds);
 
+    // If already initialized, adjust Y to keep bottom anchored if height changed
+    if (old_height > 0 && old_height != ui->current_height) {
+        int x, y;
+        x11_window_get_position(ui->window, &x, &y);
+        x11_window_move(ui->window, x, y - (ui->current_height - old_height));
+    }
+
     x11_window_resize(ui->window, ui->current_width, ui->current_height);
     renderer_resize(ui->renderer, ui->current_width, ui->current_height);
-
-    // Auto-position: centered horizontally, docked to bottom
-    int pos_x = (screen_w - ui->current_width) / 2;
-    int pos_y = screen_h - ui->current_height;
-    x11_window_move(ui->window, pos_x, pos_y);
 
     ui->dirty = true;
 }
@@ -66,6 +69,15 @@ UI* ui_create(UIConfig *config, Keyboard *keyboard,
     ui->dirty = true;
 
     ui_calculate_layout(ui);
+
+    // Initial position: centered horizontally, docked to bottom
+    Display *dpy = x11_window_get_display(ui->window);
+    int screen_w = DisplayWidth(dpy, DefaultScreen(dpy));
+    int screen_h = DisplayHeight(dpy, DefaultScreen(dpy));
+    int pos_x = (screen_w - ui->current_width) / 2;
+    int pos_y = screen_h - ui->current_height;
+    x11_window_move(ui->window, pos_x, pos_y);
+
     x11_window_set_event_callback(ui->window, ui_event_callback, ui);
     x11_window_show(ui->window);
     x11_window_set_always_on_top(ui->window, true);

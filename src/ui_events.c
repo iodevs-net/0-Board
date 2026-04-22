@@ -41,13 +41,16 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
 
     // Menu bar buttons — proportional hitboxes
     if (my < MENU_BAR_HEIGHT && ui->menu_visible) {
-        int zone_w = ui->current_width / 6;
+        int zone_w = ui->current_width / 8; // Narrower zones
         if (mx < zone_w) {
             ui_set_opacity(ui, ui->opacity - MENU_OPACITY_STEP);
         } else if (mx < zone_w * 2) {
             ui_set_opacity(ui, ui->opacity + MENU_OPACITY_STEP);
-        } else if (mx > ui->current_width - zone_w * 2) {
+        } else if (mx > zone_w * 3 && mx < zone_w * 5) {
             ui_set_color_scheme(ui, (ui->color_scheme_index + 1) % NUM_COLOR_SCHEMES);
+        } else if (mx > ui->current_width - zone_w) {
+            // Close button [x] at far right
+            ui->should_close = true;
         }
         return;
     }

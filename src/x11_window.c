@@ -358,11 +358,12 @@ bool x11_window_process_events(X11Window *window) {
     return had_events;
 }
 
+#include <errno.h>
+
 bool x11_window_wait_event(X11Window *window, int timeout_ms) {
     if (!window || !window->display) return false;
     
     if (timeout_ms > 0) {
-        // Simple implementation - poll with timeout
         fd_set fds;
         FD_ZERO(&fds);
         int x11_fd = ConnectionNumber(window->display);
@@ -372,8 +373,12 @@ bool x11_window_wait_event(X11Window *window, int timeout_ms) {
         tv.tv_sec = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
         
-        if (select(x11_fd + 1, &fds, NULL, NULL, &tv) > 0) {
+        int ret = select(x11_fd + 1, &fds, NULL, NULL, &tv);
+        if (ret > 0) {
             return x11_window_process_events(window);
+        } else if (ret < 0 && errno != EINTR) {
+            // Real error, not just a signal
+            return false;
         }
         return false;
     } else {
