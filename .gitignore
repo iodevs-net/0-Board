@@ -1,3 +1,4 @@
 *.o
-xvkbd_new
+0-board
 .gemini/
+debug.log

@@ -85,6 +85,9 @@ void x11_window_get_position(X11Window *window, int *x, int *y);
 // Resize window
 void x11_window_resize(X11Window *window, int width, int height);
 
+// Move and resize window atomically
+void x11_window_move_resize(X11Window *window, int x, int y, int width, int height);
+
 // Get current window size
 void x11_window_get_size(X11Window *window, int *width, int *height);
 

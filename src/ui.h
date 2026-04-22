@@ -66,6 +66,7 @@ int ui_get_size_index(const UI *ui);
 
 // Set size by index
 void ui_set_size_index(UI *ui, int size_index);
+void ui_apply_geometry(UI *ui, int x, int y);
 
 // Show menu bar
 void ui_show_menu(UI *ui);

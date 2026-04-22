@@ -17,8 +17,6 @@ void ui_calculate_layout(UI *ui) {
     Display *dpy = x11_window_get_display(ui->window);
     int screen_w = DisplayWidth(dpy, DefaultScreen(dpy));
 
-    int old_height = ui->current_height;
-
     double ratios[] = {SCREEN_WIDTH_RATIO_SMALL, SCREEN_WIDTH_RATIO_MEDIUM, SCREEN_WIDTH_RATIO_LARGE};
     int kb_width = screen_w * ratios[ui->size_index];
     int kb_height = kb_width * KEYBOARD_HEIGHT_RATIO;
@@ -61,33 +59,16 @@ void ui_calculate_layout(UI *ui) {
         }
     }
 
-    // Reposition based on docking or maintain anchor
-    if (old_height > 0) {
-        Display *dpy = x11_window_get_display(ui->window);
-        int screen_w = DisplayWidth(dpy, DefaultScreen(dpy));
-        int screen_h = DisplayHeight(dpy, DefaultScreen(dpy));
-        
-        int x, y;
-        x11_window_get_position(ui->window, &x, &y);
-        
-        if (ui->docked_top) {
-            // Keep centered at top
-            x11_window_move(ui->window, (screen_w - ui->current_width) / 2, 0);
-        } else if (y + old_height >= screen_h - 10) {
-            // Keep centered at bottom if it was already at the bottom
-            x11_window_move(ui->window, (screen_w - ui->current_width) / 2, 
-                           screen_h - ui->current_height);
-        } else {
-            // Adjust relative to maintain anchor point
-            x11_window_move(ui->window, x, y - (ui->current_height - old_height));
-        }
-    }
 
-    x11_window_resize(ui->window, ui->current_width, ui->current_height);
-    renderer_resize(ui->renderer, ui->current_width, ui->current_height);
 
     ui->bg_dirty = true;
     ui->dirty = true;
+}
+
+void ui_apply_geometry(UI *ui, int x, int y) {
+    if (!ui) return;
+    x11_window_move_resize(ui->window, x, y, ui->current_width, ui->current_height);
+    renderer_resize(ui->renderer, ui->current_width, ui->current_height);
 }
 
 UI* ui_create(UIConfig *config, Keyboard *keyboard,
@@ -259,8 +240,15 @@ const char* ui_get_font_family(const UI *ui) {
 
 bool ui_set_font_family(UI *ui, const char *family) {
     if (!ui || !font_manager_set_family(ui->font_manager, family)) return false;
+    
+    int x, y;
+    x11_window_get_position(ui->window, &x, &y);
+    
     ui->dirty = true;
     ui_calculate_layout(ui);
+    
+    // Apply new size at current position
+    ui_apply_geometry(ui, x, y);
     return true;
 }
 

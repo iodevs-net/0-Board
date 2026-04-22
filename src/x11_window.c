@@ -246,6 +246,13 @@ void x11_window_resize(X11Window *window, int width, int height) {
     window->height = height;
 }
 
+void x11_window_move_resize(X11Window *window, int x, int y, int width, int height) {
+    if (!window || !window->display || width <= 0 || height <= 0) return;
+    XMoveResizeWindow(window->display, window->window, x, y, width, height);
+    window->width = width;
+    window->height = height;
+}
+
 void x11_window_get_size(X11Window *window, int *width, int *height) {
     if (!window) return;
     if (width) *width = window->width;
