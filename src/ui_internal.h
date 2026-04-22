@@ -12,6 +12,7 @@
 #include "keyboard.h"
 #include "font_manager.h"
 #include "engine.h"
+#include "colors.h"
 
 // Internal UI state shared across modules
 struct UI {

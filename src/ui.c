@@ -11,6 +11,10 @@
 #include "x11_cairo_bridge.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
+// Forward declaration
+static void ui_update_theme_cache(UI *ui);
 
 // Minimum interval between frames (ms). 30fps max = ~33ms
 #define MIN_FRAME_INTERVAL_MS 33

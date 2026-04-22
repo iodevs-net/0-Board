@@ -53,6 +53,7 @@ static KeyDef default_keys[] = {
     {XK_j,         XK_J,          0, "j",  "J",  false, 7, 0},
     {XK_k,         XK_K,          0, "k",  "K",  false, 7, 0},
     {XK_l,         XK_L,          0, "l",  "L",  false, 7, 0},
+    {XK_ntilde,    XK_Ntilde,     0, "ñ",  "Ñ",  false, 7, 0},
     {XK_semicolon, XK_colon,      0, ";",  ":",  false, 7, 0},
     {XK_apostrophe,XK_quotedbl,   0, "'",  "\"", false, 7, 0},
     {XK_Return,    0,             0, "⏎",  NULL, false, 14, 0},
