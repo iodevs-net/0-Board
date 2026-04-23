@@ -16,15 +16,15 @@
 #define SCREEN_WIDTH_RATIO_LARGE  0.92
 
 // Proportions derived from keyboard width
-#define KEYBOARD_HEIGHT_RATIO 0.38
+#define KEYBOARD_HEIGHT_RATIO 0.352
 #define KEY_PADDING_RATIO     0.012
 #define KEY_GAP_RATIO         0.004
 #define FONT_SIZE_RATIO       0.030
 
 // Font sizing per key type
-#define LABEL_SCALE_LETTER   0.90
-#define LABEL_SCALE_MODIFIER 0.65
-#define LABEL_SCALE_SYMBOL   0.95
+#define LABEL_SCALE_LETTER   0.85
+#define LABEL_SCALE_MODIFIER 0.70
+#define LABEL_SCALE_SYMBOL   0.85
 
 // Drag handle
 #define DRAG_HANDLE_HEIGHT_RATIO 0.07

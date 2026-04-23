@@ -28,44 +28,41 @@ int layout_engine_calculate(const Layout *layout, int win_width, int win_height,
     int current_row = -1;
     int row_start = 0;
     
-    for (int i = 0; i < layout->num_keys; i++) {
-        if (layout->keys[i].new_row) {
+    for (int i = 0; i <= layout->num_keys; i++) {
+        bool is_end_of_row = (i == layout->num_keys) || layout->keys[i].new_row;
+        
+        if (is_end_of_row) {
             if (current_row >= 0) {
                 // Process previous row
                 double row_weight = 0;
                 for (int j = row_start; j < i; j++)
                     row_weight += layout->keys[j].width_weight;
                 
-                double unit_w = (kb_width - 2*pad - (i - row_start - 1) * gap) / row_weight;
-                int cx = pad;
+                double unit_w = (double)(kb_width - 2*pad - (i - row_start - 1) * gap) / row_weight;
+                double current_x = pad;
+                
                 for (int j = row_start; j < i; j++) {
-                    out_bounds[j].x = cx;
+                    double key_w = layout->keys[j].width_weight * unit_w;
+                    int start_x = (int)current_x;
+                    int end_x = (int)(current_x + key_w);
+                    
+                    // For the last key in the row, snap perfectly to the right edge to avoid jagged teeth
+                    if (j == i - 1) {
+                        end_x = kb_width - pad;
+                    }
+                    
+                    out_bounds[j].x = start_x;
                     out_bounds[j].y = menu_offset + pad + current_row * row_h;
-                    out_bounds[j].width = layout->keys[j].width_weight * unit_w;
+                    out_bounds[j].width = end_x - start_x;
                     out_bounds[j].height = row_h - gap;
-                    cx += out_bounds[j].width + gap;
+                    
+                    current_x += key_w + gap;
                 }
             }
-            current_row++;
-            row_start = i;
-        }
-    }
-    
-    // Process last row
-    if (current_row >= 0 && row_start < layout->num_keys) {
-        int count = layout->num_keys - row_start;
-        double row_weight = 0;
-        for (int j = row_start; j < layout->num_keys; j++)
-            row_weight += layout->keys[j].width_weight;
-        
-        double unit_w = (kb_width - 2*pad - (count - 1) * gap) / row_weight;
-        int cx = pad;
-        for (int j = row_start; j < layout->num_keys; j++) {
-            out_bounds[j].x = cx;
-            out_bounds[j].y = menu_offset + pad + current_row * row_h;
-            out_bounds[j].width = layout->keys[j].width_weight * unit_w;
-            out_bounds[j].height = row_h - gap;
-            cx += out_bounds[j].width + gap;
+            if (i < layout->num_keys) {
+                current_row++;
+                row_start = i;
+            }
         }
     }
     

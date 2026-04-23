@@ -1,5 +1,7 @@
 # 0-board
 
+![0-board Apple-style Virtual Keyboard](assets/images/screenshot.png)
+
 A modern virtual keyboard built from scratch with a focus on clean architecture, maintainability, and IA-agent friendliness.
 
 ## Philosophy
