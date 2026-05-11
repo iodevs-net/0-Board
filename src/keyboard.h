@@ -77,6 +77,9 @@ void keyboard_toggle_shift(Keyboard *kb);
 void keyboard_toggle_caps_lock(Keyboard *kb);
 
 // Get current keyboard state
+// Toggle FN layer
+void keyboard_toggle_fn(Keyboard *kb);
+
 KeyboardState keyboard_get_state(const Keyboard *kb);
 
 // Check if keyboard state is dirty (needs visual update)

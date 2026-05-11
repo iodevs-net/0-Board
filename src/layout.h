@@ -14,11 +14,14 @@
 #define KEYFLAG_CTRL     8
 #define KEYFLAG_ALT      16
 #define KEYFLAG_META     32
+#define KEYFLAG_FN       64
 
 typedef struct {
     KeySym normal;
     KeySym shifted;
     KeySym altgr;
+    KeySym fn_keysym;       // keysym when FN layer active (0 = same as normal)
+    const char *fn_label;   // label when FN layer active (NULL = same as label)
     const char *label;
     const char *shifted_label; // NULL if same or auto-uppercase
     bool new_row;

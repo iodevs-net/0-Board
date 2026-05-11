@@ -72,6 +72,35 @@ int main() {
     ASSERT(s.alt_state == MODIFIER_OFF, "reset: alt");
     ASSERT(s.meta_state == MODIFIER_OFF, "reset: meta");
 
+    // FN layer tests
+    kbd_state_reset(&s);
+    ASSERT(!s.fn_active, "FN not active initially");
+
+    kbd_state_toggle_fn(&s);
+    ASSERT(s.fn_active, "FN one-shot active");
+    ASSERT(!s.fn_locked, "FN not locked yet");
+
+    kbd_state_toggle_fn(&s);
+    ASSERT(s.fn_active, "FN still active after second press");
+    ASSERT(s.fn_locked, "FN locked after second press");
+
+    kbd_state_toggle_fn(&s);
+    ASSERT(!s.fn_active, "FN off after third press");
+    ASSERT(!s.fn_locked, "FN unlocked after third press");
+
+    // FN one-shot: sent key → auto-release
+    kbd_state_reset(&s);
+    kbd_state_toggle_fn(&s); // one-shot
+    KeyDef non_fn_key = { .normal = XK_a, .label = "a", .flags = KEYFLAG_NORMAL };
+    kbd_state_notify_key_sent(&s, &non_fn_key);
+    ASSERT(!s.fn_active, "FN one-shot released after non-FN key");
+
+    // Effective layer check
+    kbd_state_reset(&s);
+    kbd_state_toggle_fn(&s);
+    KeyDef any_key = { .normal = XK_1, .label = "1", .flags = KEYFLAG_NORMAL };
+    ASSERT(kbd_state_get_effective_layer(&s, &any_key) == LAYER_FN, "FN active → FN layer");
+
     printf("\n%d tests, %d failures\n", tests, failures);
     return failures > 0 ? 1 : 0;
 }

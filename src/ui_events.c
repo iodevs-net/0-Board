@@ -55,10 +55,6 @@ static bool handle_menu_click(UI *ui, int mx, int my) {
 static bool handle_special_key(UI *ui, int key_index, const char *label) {
     (void)key_index;
     if (!label) return false;
-    if (strcmp(label, "fn") == 0) {
-        if (ui->menu_visible) ui_hide_menu(ui); else ui_show_menu(ui);
-        return true;
-    }
     if (strcmp(label, "↑↓") == 0) {
         ui_toggle_dock_position(ui);
         return true;

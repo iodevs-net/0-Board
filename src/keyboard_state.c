@@ -15,6 +15,9 @@ Layer kbd_state_get_effective_layer(const KbdState *state, KeyDef *key) {
     // Si Shift está activo, SIEMPRE usamos la capa Shift (Layer 1)
     if (state->active_layer == LAYER_SHIFT) return LAYER_SHIFT;
 
+    // Si FN está activo, usamos la capa FN
+    if (state->fn_active) return LAYER_FN;
+ 
     // Si CapsLock está activo, solo usamos la capa Shift para letras
     if (state->caps_lock && keysym_is_letter(key->normal)) return LAYER_SHIFT;
 
@@ -69,6 +72,22 @@ void kbd_state_toggle_meta(KbdState *state) {
     toggle_modifier(&state->meta_state, "Meta");
     state->dirty = true;
 }
+void kbd_state_toggle_fn(KbdState *state) {
+    if (!state) return;
+    if (!state->fn_active) {
+        state->fn_active = true;
+        state->fn_locked = false;
+        LOG_DEBUG("State: FN One-Shot active");
+    } else if (state->fn_active && !state->fn_locked) {
+        state->fn_locked = true;
+        LOG_DEBUG("State: FN LOCKED active");
+    } else {
+        state->fn_active = false;
+        state->fn_locked = false;
+        LOG_DEBUG("State: FN OFF");
+    }
+    state->dirty = true;
+}
 
 void kbd_state_notify_key_sent(KbdState *state, KeyDef *key) {
     if (!state || !key) return;
@@ -95,6 +114,12 @@ void kbd_state_notify_key_sent(KbdState *state, KeyDef *key) {
         state->meta_state = MODIFIER_OFF;
         state->dirty = true;
     }
+    // FN One-Shot logic
+    if (state->fn_active && !state->fn_locked && !(key->flags & KEYFLAG_FN)) {
+        state->fn_active = false;
+        state->dirty = true;
+        LOG_DEBUG("State: One-Shot FN consumed by key");
+    }
 }
 
 void kbd_state_toggle_caps(KbdState *state) {
@@ -111,6 +136,8 @@ void kbd_state_reset(KbdState *state) {
     state->ctrl_state = MODIFIER_OFF;
     state->alt_state = MODIFIER_OFF;
     state->meta_state = MODIFIER_OFF;
+    state->fn_active = false;
+    state->fn_locked = false;
     state->caps_lock = false;
     state->pressed_key_index = -1;
     state->dirty = true;
@@ -123,6 +150,7 @@ int kbd_state_get_modifier_mask(const KbdState *state) {
     if (state->ctrl_state != MODIFIER_OFF) mask |= 2; // Ctrl
     if (state->alt_state != MODIFIER_OFF) mask |= 4; // Alt
     if (state->meta_state != MODIFIER_OFF) mask |= 8; // Meta
+    if (state->fn_active) mask |= 16; // FN
     return mask;
 }
 

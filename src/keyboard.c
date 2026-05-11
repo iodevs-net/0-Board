@@ -35,6 +35,8 @@ void keyboard_press_key(Keyboard *kb, int key_index) {
         kbd_state_toggle_alt(&kb->state);
     } else if (key->flags & KEYFLAG_META) {
         kbd_state_toggle_meta(&kb->state);
+    } else if (key->flags & KEYFLAG_FN) {
+        kbd_state_toggle_fn(&kb->state);
     } else if (key->normal == XK_Caps_Lock) {
         kbd_state_toggle_caps(&kb->state);
     }
@@ -74,6 +76,7 @@ KeySym keyboard_get_keysym(const Keyboard *kb, int key_index) {
     
     if (effective_layer == LAYER_SHIFT && key->shifted != 0) return key->shifted;
     if (effective_layer == LAYER_ALTGR && key->altgr != 0) return key->altgr;
+    if (effective_layer == LAYER_FN && key->fn_keysym != 0) return key->fn_keysym;
     
     return key->normal;
 }
@@ -91,6 +94,7 @@ const char* keyboard_get_key_label(const Keyboard *kb, int key_index) {
     Layer effective_layer = kbd_state_get_effective_layer(&kb->state, key);
     
     if (effective_layer == LAYER_SHIFT && key->shifted_label) return key->shifted_label;
+    if (effective_layer == LAYER_FN && key->fn_label) return key->fn_label;
     
     return key->label;
 }
@@ -109,6 +113,8 @@ void keyboard_destroy(Keyboard *kb) {
 void keyboard_set_layout(Keyboard *kb, Layout *layout) { if (kb) kb->layout = layout; }
 void keyboard_toggle_shift(Keyboard *kb) { if (kb) kbd_state_toggle_shift(&kb->state); }
 void keyboard_toggle_caps_lock(Keyboard *kb) { if (kb) kbd_state_toggle_caps(&kb->state); }
+void keyboard_toggle_fn(Keyboard *kb) { if (kb) kbd_state_toggle_fn(&kb->state); }
+
 KeyboardState keyboard_get_state(const Keyboard *kb) { 
     KeyboardState s = {0}; 
     if (kb) {

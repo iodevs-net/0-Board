@@ -9,7 +9,8 @@
 typedef enum {
     LAYER_NORMAL = 0,
     LAYER_SHIFT  = 1,
-    LAYER_ALTGR  = 2
+    LAYER_ALTGR  = 2,
+    LAYER_FN     = 3
 } Layer;
 
 typedef enum {
@@ -22,6 +23,8 @@ typedef struct {
     Layer active_layer;
     bool shift_locked;
     ModifierState ctrl_state;
+    bool fn_active;
+    bool fn_locked;
     ModifierState alt_state;
     ModifierState meta_state;
     bool caps_lock;
@@ -41,6 +44,7 @@ void kbd_state_toggle_shift(KbdState *state);
 void kbd_state_toggle_ctrl(KbdState *state);
 void kbd_state_toggle_alt(KbdState *state);
 void kbd_state_toggle_meta(KbdState *state);
+void kbd_state_toggle_fn(KbdState *state);
 void kbd_state_toggle_caps(KbdState *state);
 void kbd_state_reset(KbdState *state);
 
