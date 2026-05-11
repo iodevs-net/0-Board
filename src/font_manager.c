@@ -58,103 +58,93 @@ static bool case_insensitive_contains(const char *haystack, const char *needle) 
     return false;
 }
 
-static void load_fonts(FontManager *fm) {
-    FcConfig *cfg = FcInitLoadConfigAndFonts();
-    if (!cfg) {
-        fprintf(stderr, "font_manager: failed to initialize FontConfig\n");
-        goto fallback;
-    }
+static bool is_duplicate(FontManager *fm, const char *name) {
+    for (int i = 0; i < fm->font_count; i++)
+        if (strcmp(fm->fonts[i], name) == 0) return true;
+    return false;
+}
 
-    // Register local fonts and MAKE THIS CONFIG CURRENT
-    const char *local_fonts_path = fm->config.font_dir ? fm->config.font_dir : "./assets/fonts";
-    if (FcConfigAppFontAddDir(cfg, (const FcChar8*)local_fonts_path)) {
-        printf("font_manager: applying local font config from %s\n", local_fonts_path);
-        FcConfigSetCurrent(cfg);
-    }
-    
+static void load_system_fonts(FontManager *fm, FcConfig *cfg) {
     FcPattern *pat = FcPatternCreate();
     FcObjectSet *os = FcObjectSetBuild(FC_FAMILY, NULL);
     FcFontSet *fs = FcFontList(cfg, pat, os);
-    
-    if (fs) {
-        // Allocate initial space
-        fm->capacity = fm->config.max_fonts_to_cache;
-        fm->fonts = malloc(sizeof(char*) * fm->capacity);
-        if (!fm->fonts) {
-            fprintf(stderr, "font_manager: failed to allocate font array\n");
-            FcFontSetDestroy(fs);
-            goto cleanup;
-        }
-        
-        // Scan fonts
-        for (int i = 0; i < fs->nfont && fm->font_count < fm->capacity; i++) {
-            FcChar8 *fam;
-            if (FcPatternGetString(fs->fonts[i], FC_FAMILY, 0, &fam) != FcResultMatch) {
-                continue;
-            }
-            
-            // Check for duplicates
-            bool duplicate = false;
-            for (int j = 0; j < fm->font_count; j++) {
-                if (strcmp(fm->fonts[j], (char*)fam) == 0) {
-                    duplicate = true;
-                    break;
-                }
-            }
-            
-            if (!duplicate) {
-                fm->fonts[fm->font_count] = strdup((char*)fam);
-                if (fm->fonts[fm->font_count]) {
-                    fm->font_count++;
-                }
-            }
-        }
-        
-        FcFontSetDestroy(fs);
+
+    if (!fs) { FcObjectSetDestroy(os); FcPatternDestroy(pat); return; }
+
+    for (int i = 0; i < fs->nfont && fm->font_count < fm->capacity; i++) {
+        FcChar8 *fam;
+        if (FcPatternGetString(fs->fonts[i], FC_FAMILY, 0, &fam) != FcResultMatch)
+            continue;
+        if (is_duplicate(fm, (const char*)fam)) continue;
+        fm->fonts[fm->font_count++] = strdup((const char*)fam);
     }
-    
-cleanup:
+
+    FcFontSetDestroy(fs);
     FcObjectSetDestroy(os);
     FcPatternDestroy(pat);
-    FcConfigDestroy(cfg);
-    
-fallback:
-    // Add default fonts if we didn't load any
-    if (fm->font_count == 0) {
-        fm->capacity = 8;
-        fm->fonts = malloc(sizeof(char*) * fm->capacity);
-        if (fm->fonts) {
-            for (int i = 0; DEFAULT_FONT_FAMILIES[i] && fm->font_count < fm->capacity; i++) {
-                fm->fonts[fm->font_count] = strdup(DEFAULT_FONT_FAMILIES[i]);
-                if (fm->fonts[fm->font_count]) {
-                    fm->font_count++;
-                }
-            }
-        }
-    }
-    
-    fm->fonts_loaded = true;
+}
 
-    // Set initial font
+static void load_local_fonts(FontManager *fm, FcConfig *cfg) {
+    if (!fm->config.font_dir) return;
+    FcConfigAppFontAddDir(cfg, (const FcChar8*)fm->config.font_dir);
+    FcConfigSetCurrent(cfg);
+    printf("font_manager: loaded local fonts from %s\n", fm->config.font_dir);
+}
+
+static void load_fallback_fonts(FontManager *fm) {
+    fm->capacity = 8;
+    fm->fonts = malloc(sizeof(char*) * fm->capacity);
+    if (!fm->fonts) return;
+    for (int i = 0; DEFAULT_FONT_FAMILIES[i] && fm->font_count < fm->capacity; i++)
+        fm->fonts[fm->font_count++] = strdup(DEFAULT_FONT_FAMILIES[i]);
+}
+
+static void select_initial_font(FontManager *fm) {
+    if (!fm->font_count) { fm->current_index = -1; return; }
+
     if (fm->config.preferred_family) {
-        font_manager_set_family(fm, fm->config.preferred_family);
-    } else {
-        // Try to find a sans-serif font
         for (int i = 0; i < fm->font_count; i++) {
-            for (int j = 0; DEFAULT_FONT_FAMILIES[j]; j++) {
-                if (case_insensitive_contains(fm->fonts[i], DEFAULT_FONT_FAMILIES[j])) {
-                    fm->current_index = i;
-                    break;
-                }
+            if (strcasecmp(fm->fonts[i], fm->config.preferred_family) == 0) {
+                fm->current_index = i;
+                return;
             }
-            if (fm->current_index >= 0) break;
-        }
-        
-        // Fallback to first font
-        if (fm->current_index < 0 && fm->font_count > 0) {
-            fm->current_index = 0;
         }
     }
+
+    // Try to find a known sans-serif font
+    for (int i = 0; i < fm->font_count; i++)
+        for (int j = 0; DEFAULT_FONT_FAMILIES[j]; j++)
+            if (case_insensitive_contains(fm->fonts[i], DEFAULT_FONT_FAMILIES[j]))
+                { fm->current_index = i; return; }
+
+    fm->current_index = 0;
+}
+
+static void ensure_fonts_loaded(FontManager *fm) {
+    if (fm->fonts_loaded) return;
+
+    FcConfig *cfg = FcInitLoadConfigAndFonts();
+    if (!cfg) {
+        load_fallback_fonts(fm);
+        fm->fonts_loaded = true;
+        select_initial_font(fm);
+        return;
+    }
+
+    load_local_fonts(fm, cfg);
+
+    fm->capacity = fm->config.max_fonts_to_cache;
+    fm->fonts = malloc(sizeof(char*) * fm->capacity);
+    if (fm->fonts) {
+        load_system_fonts(fm, cfg);
+    }
+
+    FcConfigDestroy(cfg);
+
+    if (fm->font_count == 0) load_fallback_fonts(fm);
+
+    fm->fonts_loaded = true;
+    select_initial_font(fm);
 }
 
 FontManager* font_manager_create(FontConfig *config) {
@@ -179,7 +169,7 @@ FontManager* font_manager_create(FontConfig *config) {
     
     // Load fonts immediately if configured to do so
     if (fm->config.load_all_system_fonts) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     return fm;
@@ -189,7 +179,7 @@ const char* font_manager_get_current_family(FontManager *fm) {
     if (!fm) return NULL;
     
     if (!fm->fonts_loaded) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     if (fm->current_index >= 0 && fm->current_index < fm->font_count) {
@@ -203,7 +193,7 @@ const char* font_manager_get_next_family(FontManager *fm) {
     if (!fm || fm->font_count == 0) return NULL;
     
     if (!fm->fonts_loaded) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     fm->current_index = (fm->current_index + 1) % fm->font_count;
@@ -214,7 +204,7 @@ const char* font_manager_get_previous_family(FontManager *fm) {
     if (!fm || fm->font_count == 0) return NULL;
     
     if (!fm->fonts_loaded) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     fm->current_index = (fm->current_index - 1 + fm->font_count) % fm->font_count;
@@ -225,7 +215,7 @@ int font_manager_get_font_count(FontManager *fm) {
     if (!fm) return 0;
     
     if (!fm->fonts_loaded) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     return fm->font_count;
@@ -235,7 +225,7 @@ bool font_manager_has_family(FontManager *fm, const char *family) {
     if (!fm || !family) return false;
     
     if (!fm->fonts_loaded) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     for (int i = 0; i < fm->font_count; i++) {
@@ -251,7 +241,7 @@ bool font_manager_set_family(FontManager *fm, const char *family) {
     if (!fm || !family) return false;
     
     if (!fm->fonts_loaded) {
-        load_fonts(fm);
+        ensure_fonts_loaded(fm);
     }
     
     for (int i = 0; i < fm->font_count; i++) {
