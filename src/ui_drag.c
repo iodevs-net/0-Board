@@ -1,11 +1,5 @@
-/*
- * 0-Board Virtual Keyboard
- * Copyright (c) 2026 Leonardo Vergara <leonardovergaramarin@gmail.com>
- * Licensed under the MIT License.
- *
- * ui_drag: Single-responsibility module for managing window dragging via X11.
- * Extracted from the inline drag logic that was in ui_events.c.
- */
+// SPDX-License-Identifier: MIT — see LICENSE file
+
 #include "ui_drag.h"
 
 void drag_init(DragState *state) {

@@ -1,8 +1,5 @@
-/*
- * 0-Board Virtual Keyboard
- * Copyright (c) 2026 Leonardo Vergara <leonardovergaramarin@gmail.com>
- * Licensed under the MIT License.
- */
+// SPDX-License-Identifier: MIT — see LICENSE file
+
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>

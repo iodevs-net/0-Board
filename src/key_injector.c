@@ -1,12 +1,5 @@
-/*
- * 0-Board Virtual Keyboard
- * Copyright (c) 2026 Leonardo Vergara <leonardovergaramarin@gmail.com>
- * Licensed under the MIT License.
- *
- * key_injector: Single-responsibility module for injecting a key from
- * a keyboard index through the engine.  Isolates the XTest send + wait +
- * release + flush sequence that the UI button handler was doing inline.
- */
+// SPDX-License-Identifier: MIT — see LICENSE file
+
 #include "key_injector.h"
 #include "layout.h"
 #include <unistd.h>
