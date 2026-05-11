@@ -48,6 +48,12 @@ int main() {
 
     Config config;
     config_load_defaults(&config);
+    // Load config from file (overrides defaults)
+    char *cfg_path = config_get_default_path();
+    if (cfg_path) {
+        config_load_from_file(&config, cfg_path);
+        free(cfg_path);
+    }
 
     DEBUG_INIT("debug.log");
     LOG_INFO("Starting 0-board...");
@@ -66,7 +72,8 @@ int main() {
     FontConfig font_config = {
         .preferred_family = "Inter",
         .load_all_system_fonts = false,
-        .max_fonts_to_cache = 50
+        .max_fonts_to_cache = 50,
+        .font_dir = config.font_dir,
     };
 
     FontManager *font_manager = font_manager_create(&font_config);

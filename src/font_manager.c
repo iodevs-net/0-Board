@@ -69,7 +69,7 @@ static void load_fonts(FontManager *fm) {
     }
 
     // Register local fonts and MAKE THIS CONFIG CURRENT
-    const char *local_fonts_path = "./assets/fonts";
+    const char *local_fonts_path = fm->config.font_dir ? fm->config.font_dir : "./assets/fonts";
     if (FcConfigAppFontAddDir(cfg, (const FcChar8*)local_fonts_path)) {
         printf("font_manager: applying local font config from %s\n", local_fonts_path);
         FcConfigSetCurrent(cfg);

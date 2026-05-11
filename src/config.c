@@ -33,6 +33,15 @@ void config_load_defaults(Config *config) {
     strncpy(config->voice_script_path, DEFAULT_VOICE_SCRIPT_PATH,
             sizeof(config->voice_script_path) - 1);
     config->voice_script_path[sizeof(config->voice_script_path) - 1] = '\0';
+    // Resolve font directory from HOME
+    const char *home = getenv("HOME");
+    if (home) {
+        snprintf(config->font_dir, sizeof(config->font_dir),
+                 "%s/0-Board/assets/fonts", home);
+    } else {
+        strncpy(config->font_dir, "./assets/fonts", sizeof(config->font_dir) - 1);
+        config->font_dir[sizeof(config->font_dir) - 1] = '\0';
+    }
 }
 
 static void trim(char *str) {
@@ -122,6 +131,10 @@ bool config_load_from_file(Config *config, const char *filename) {
             strncpy(config->voice_script_path, value,
                     sizeof(config->voice_script_path) - 1);
             config->voice_script_path[sizeof(config->voice_script_path) - 1] = '\0';
+        } else if (strcmp(key, "font_dir") == 0) {
+            strncpy(config->font_dir, value,
+                    sizeof(config->font_dir) - 1);
+            config->font_dir[sizeof(config->font_dir) - 1] = '\0';
         }
         // Unknown keys are ignored
     }
@@ -157,6 +170,7 @@ bool config_save_to_file(const Config *config, const char *filename) {
     fprintf(f, "\n");
     fprintf(f, "voice_recording_flag = %s\n", config->voice_recording_flag);
     fprintf(f, "voice_script_path = %s\n", config->voice_script_path);
+    fprintf(f, "font_dir = %s\n", config->font_dir);
 
     fclose(f);
     return true;

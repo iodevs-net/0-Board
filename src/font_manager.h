@@ -16,6 +16,7 @@ typedef struct {
     const char *preferred_family;  // Preferred font family (NULL for default)
     bool load_all_system_fonts;    // Whether to scan all system fonts at startup
     int max_fonts_to_cache;        // Maximum fonts to keep in cache
+    const char *font_dir;            // Custom font directory path (NULL for default "./assets/fonts")
 } FontConfig;
 
 // Create a new font manager

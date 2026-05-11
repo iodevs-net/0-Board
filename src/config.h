@@ -32,6 +32,7 @@ typedef struct {
     // Voice feature paths
     char voice_recording_flag[128];  // Path to recording flag file
     char voice_script_path[256];     // Path to voice script binary
+    char font_dir[512];              // Path to assets/fonts directory (resolved from HOME)
 } Config;
 
 #define DEFAULT_VOICE_RECORDING_FLAG "/tmp/0-voice-recording"
