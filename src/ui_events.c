@@ -118,7 +118,7 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             }
             break;
         }
-        if (sym == XK_Super_L) { handle_voice_key(ui); break; }
+        if (sym == XK_Super_L) { keyboard_press_key(ui->keyboard, i); handle_voice_key(ui); break; }
 
         keyboard_press_key(ui->keyboard, i);
         KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];
