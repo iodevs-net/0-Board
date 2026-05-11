@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "keysym_util.h"
 
 struct Engine {
     Display *display;
@@ -67,37 +68,10 @@ int engine_send_key_ex(Engine *engine, KeySym keysym, bool pressed, int modifier
         // For other shifted symbols, try the unshifted version
         // XK_exclam → XK_1, XK_at → XK_2, etc.
         else if (keysym >= XK_exclam && keysym <= XK_asciitilde) {
-            // Simple ASCII: most shifted chars are keysym = base+0x10 offset
-            // But the relationship varies by layout. Use known mappings.
-            static const struct { KeySym shifted; KeySym base; } shift_map[] = {
-                {XK_exclam,     XK_1},
-                {XK_at,         XK_2},
-                {XK_numbersign, XK_3},
-                {XK_dollar,     XK_4},
-                {XK_percent,    XK_5},
-                {XK_asciicircum,XK_6},
-                {XK_ampersand,  XK_7},
-                {XK_asterisk,   XK_8},
-                {XK_parenleft,  XK_9},
-                {XK_parenright, XK_0},
-                {XK_underscore, XK_minus},
-                {XK_plus,       XK_equal},
-                {XK_braceleft,  XK_bracketleft},
-                {XK_braceright, XK_bracketright},
-                {XK_bar,        XK_backslash},
-                {XK_colon,      XK_semicolon},
-                {XK_quotedbl,   XK_apostrophe},
-                {XK_less,       XK_comma},
-                {XK_greater,    XK_period},
-                {XK_question,   XK_slash},
-                {XK_asciitilde, XK_grave},
-            };
-            for (size_t i = 0; i < sizeof(shift_map)/sizeof(shift_map[0]); i++) {
-                if (shift_map[i].shifted == keysym) {
-                    base = shift_map[i].base;
-                    modifiers |= 1; // Need Shift
-                    break;
-                }
+            KeySym found = keysym_get_base(keysym);
+            if (found) {
+                base = found;
+                modifiers |= 1;
             }
         }
         kc = XKeysymToKeycode(engine->display, base);

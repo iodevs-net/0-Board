@@ -8,7 +8,8 @@ SRC = src/layout.c src/keyboard.c src/keyboard_state.c src/colors.c src/config.c
       src/renderer.c src/cairo_renderer.c \
       src/engine.c src/x11_window.c src/font_manager.c src/x11_cairo_bridge.c \
       src/ui.c src/ui_events.c src/ui_render_helper.c src/layout_engine.c \
-      src/main.c src/debug.c
+      src/main.c src/debug.c \
+      src/keysym_util.c
 
 OBJ = $(SRC:.c=.o)
 TARGET = 0-board
@@ -46,11 +47,11 @@ test: $(TEST_SRC:%.c=%)
 	done
 	@echo "All tests done."
 
-tests/test_keyboard_state: tests/test_keyboard_state.c src/keyboard_state.c src/layout.c src/keyboard.c src/debug.c
+tests/test_keyboard_state: tests/test_keyboard_state.c src/keyboard_state.c src/layout.c src/keyboard.c src/debug.c src/keysym_util.c
 	$(CC) $(TEST_CFLAGS) $^ -o $@ -lX11
 
 tests/test_layout_keys: tests/test_layout_keys.c src/layout.c src/debug.c
 	$(CC) $(TEST_CFLAGS) $^ -o $@
 
-tests/test_engine_keysym: tests/test_engine_keysym.c src/debug.c
+tests/test_engine_keysym: tests/test_engine_keysym.c src/keysym_util.c
 	$(CC) $(TEST_CFLAGS) $^ -o $@

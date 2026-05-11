@@ -6,12 +6,10 @@
 #include "keyboard_state.h"
 #include <X11/keysym.h>
 #include "debug.h"
+#include "keysym_util.h"
 
 bool kbd_state_is_letter(KeySym sym) {
-    return (sym >= XK_a && sym <= XK_z) ||
-           (sym >= XK_A && sym <= XK_Z) ||
-           (sym == XK_ntilde) || (sym == XK_Ntilde) ||
-           (sym == 0xf1) || (sym == 0xd1); // ñ / Ñ
+    return keysym_is_letter(sym);
 }
 
 Layer kbd_state_get_effective_layer(const KbdState *state, KeyDef *key) {
@@ -21,7 +19,7 @@ Layer kbd_state_get_effective_layer(const KbdState *state, KeyDef *key) {
     if (state->active_layer == LAYER_SHIFT) return LAYER_SHIFT;
 
     // Si CapsLock está activo, solo usamos la capa Shift para letras
-    if (state->caps_lock && kbd_state_is_letter(key->normal)) return LAYER_SHIFT;
+    if (state->caps_lock && keysym_is_letter(key->normal)) return LAYER_SHIFT;
 
     return state->active_layer;
 }
@@ -135,7 +133,7 @@ int kbd_state_get_modifier_mask_for_key(const KbdState *state, KeySym keysym) {
     if (!state) return 0;
     int mask = kbd_state_get_modifier_mask(state);
     // Caps Lock: produce uppercase via Shift only for letter keys
-    if (state->caps_lock && kbd_state_is_letter(keysym)) {
+    if (state->caps_lock && keysym_is_letter(keysym)) {
         mask |= 1; // Include Shift
     }
     return mask;
