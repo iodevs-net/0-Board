@@ -13,6 +13,7 @@
 #include "font_manager.h"
 #include "engine.h"
 #include "colors.h"
+#include "ui_drag.h"
 
 // Internal UI state shared across modules
 struct UI {
@@ -52,8 +53,7 @@ struct UI {
     bool last_rendered_caps;
     
     // Interaction state
-    bool dragging;
-    int drag_offset_x, drag_offset_y;
+    DragState drag;
     Rectangle menu_btn_bounds[4]; // 0: minus, 1: plus, 2: theme, 3: close
 };
 

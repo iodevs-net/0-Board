@@ -144,6 +144,7 @@ UI* ui_create(UIConfig *config, Keyboard *keyboard,
     
     ui->menu_visible = ui->config.show_menu_bar;
     ui->dirty = true;
+    drag_init(&ui->drag);
 
     ui_calculate_layout(ui);
 

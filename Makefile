@@ -9,7 +9,8 @@ SRC = src/layout.c src/keyboard.c src/keyboard_state.c src/colors.c src/config.c
       src/engine.c src/x11_window.c src/font_manager.c src/x11_cairo_bridge.c \
       src/ui.c src/ui_events.c src/ui_render_helper.c src/layout_engine.c \
       src/main.c src/debug.c \
-      src/keysym_util.c
+      src/keysym_util.c \
+      src/key_injector.c src/ui_drag.c
 
 OBJ = $(SRC:.c=.o)
 TARGET = 0-board

@@ -8,6 +8,7 @@
 #include "layout_engine.h"
 #include "colors.h"
 #include "debug.h"
+#include "key_injector.h"
 #include <X11/keysym.h>
 #include <string.h>
 #include <unistd.h>
@@ -52,11 +53,7 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (wx > ui->current_width - edge) on_edge = true;
 
     if (button == 2 || (button == 1 && on_edge)) {
-        int win_x, win_y;
-        x11_window_get_position(ui->window, &win_x, &win_y);
-        ui->drag_offset_x = rx - win_x;
-        ui->drag_offset_y = ry - win_y;
-        ui->dragging = true;
+        drag_start(&ui->drag, ui->window, rx, ry);
         return;
     }
 
@@ -142,23 +139,11 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
                         keyboard_press_key(ui->keyboard, i);
 
                         KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];
-                        bool is_modifier = (key->flags & (KEYFLAG_SHIFT | KEYFLAG_CTRL | KEYFLAG_ALT | KEYFLAG_META)) ||
-                                         (key->normal == XK_Caps_Lock);
-
-                        if (!is_modifier) {
-                            // Use keysym-aware modifiers (handles Caps Lock → Shift for letters)
+                        if (!key_injector_is_modifier(key)) {
                             int mods = keyboard_get_modifiers_for_keysym(ui->keyboard, sym);
-                            engine_send_key_ex(ui->engine, sym, true, mods);
-                            XFlush(x11_window_get_display(ui->window));
 
-                            // Event delay: small enough to not block UI, large enough for key repeat
-                            if (ui->config.key_event_delay_us > 0) {
-                                usleep(ui->config.key_event_delay_us);
-                            }
-
-                            engine_send_key_ex(ui->engine, sym, false, mods);
-                            engine_flush(ui->engine);
-
+                            key_injector_send(ui->engine, x11_window_get_display(ui->window),
+                                              sym, mods, ui->config.key_event_delay_us);
                             keyboard_notify_key_sent(ui->keyboard, i);
                         }
                     }
@@ -180,8 +165,8 @@ void ui_handle_button_release(UI *ui, int x, int y, int button) {
 }
 
 void ui_handle_motion(UI *ui, int rx, int ry) {
-    if (!ui || !ui->dragging || !ui->window) return;
-    x11_window_move(ui->window, rx - ui->drag_offset_x, ry - ui->drag_offset_y);
+    if (!ui) return;
+    drag_move(&ui->drag, ui->window, rx, ry);
 }
 
 void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
@@ -191,7 +176,7 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
 
     switch (event->type) {
         case WINDOW_EVENT_RESIZE:
-            if (ui->dragging) break;
+            if (ui->drag.dragging) break;
             if (event->width != ui->current_width || event->height != ui->current_height) {
                 ui->current_width = event->width;
                 ui->current_height = event->height;
@@ -213,7 +198,7 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
             break;
 
         case WINDOW_EVENT_BUTTON_RELEASE:
-            ui->dragging = false;
+            drag_end(&ui->drag);
             ui_handle_button_release(ui, event->x, event->y, (int)event->button);
             break;
 
