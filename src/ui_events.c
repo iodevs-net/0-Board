@@ -109,7 +109,15 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
         if (handle_special_key(ui, i, label)) break;
 
         KeySym sym = keyboard_get_keysym(ui->keyboard, i);
-        if (sym == XK_Super_R) { handle_size_toggle(ui, i); break; }
+        if (sym == XK_Super_R) {
+            KeyboardState st = keyboard_get_state(ui->keyboard);
+            if (st.fn_active) {
+                if (ui->menu_visible) ui_hide_menu(ui); else ui_show_menu(ui);
+            } else {
+                handle_size_toggle(ui, i);
+            }
+            break;
+        }
         if (sym == XK_Super_L) { handle_voice_key(ui); break; }
 
         keyboard_press_key(ui->keyboard, i);
