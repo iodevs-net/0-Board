@@ -14,9 +14,9 @@ typedef struct Engine Engine;
 
 // Configuration for keyboard event engine
 typedef struct {
-    Display *display;     // NULL to open default display
-    bool use_xtest;       // Use XTest extension for synthetic events
-    int event_delay_ms;   // Delay between press/release (0 for immediate)
+    Display *display;       // NULL to open default display
+    bool use_xtest;         // Use XTest extension for synthetic events
+    int event_delay_us;     // Microseconds delay between press/release (0 = no delay)
 } EngineConfig;
 
 // Create a new engine instance

@@ -103,8 +103,13 @@ void layout_init(Layout *l) {
         // Classify keys by function
         if (strcmp(k->label, "⇧") == 0)
             k->flags = KEYFLAG_SHIFT | KEYFLAG_MODIFIER;
-        else if (strcmp(k->label, "fn") == 0 || strcmp(k->label, "ctrl") == 0 ||
-                 strcmp(k->label, "alt") == 0 || strcmp(k->label, "mic") == 0 ||
+        else if (strcmp(k->label, "ctrl") == 0)
+            k->flags = KEYFLAG_CTRL | KEYFLAG_MODIFIER;
+        else if (strcmp(k->label, "alt") == 0)
+            k->flags = KEYFLAG_ALT | KEYFLAG_MODIFIER;
+        else if (strcmp(k->label, "mic") == 0)
+            k->flags = KEYFLAG_META | KEYFLAG_MODIFIER;
+        else if (strcmp(k->label, "fn") == 0 || 
                  strcmp(k->label, "size") == 0 || strcmp(k->label, "⇥") == 0 ||
                  strcmp(k->label, "⌫") == 0 || strcmp(k->label, "⏎") == 0 ||
                  strcmp(k->label, "←") == 0 || strcmp(k->label, "↑") == 0 ||

@@ -67,6 +67,12 @@ void ui_render_draw_keyboard(Renderer *renderer, Keyboard *keyboard,
         if (draw_dynamic) {
             if (key->flags & KEYFLAG_SHIFT)
                 is_active_modifier = (state.current_layer == KEYBOARD_LAYER_SHIFT);
+            else if (key->flags & KEYFLAG_CTRL)
+                is_active_modifier = (state.ctrl_state != KBD_MODIFIER_OFF);
+            else if (key->flags & KEYFLAG_ALT)
+                is_active_modifier = (state.alt_state != KBD_MODIFIER_OFF);
+            else if (key->flags & KEYFLAG_META)
+                is_active_modifier = (state.meta_state != KBD_MODIFIER_OFF);
             else if (key->normal == XK_Caps_Lock)
                 is_active_modifier = state.caps_lock;
             
@@ -88,6 +94,9 @@ void ui_render_draw_keyboard(Renderer *renderer, Keyboard *keyboard,
         Color apple_orange = {1.0, 0.58, 0.0, 1.0}; // #FF9500
         
         bool is_shift_key = (key->flags & KEYFLAG_SHIFT) != 0;
+        bool is_ctrl_key  = (key->flags & KEYFLAG_CTRL)  != 0;
+        bool is_alt_key   = (key->flags & KEYFLAG_ALT)   != 0;
+        bool is_meta_key  = (key->flags & KEYFLAG_META)  != 0;
         bool is_caps_lock = (key->normal == XK_Caps_Lock);
 
         if (is_pressed) {
@@ -95,14 +104,19 @@ void ui_render_draw_keyboard(Renderer *renderer, Keyboard *keyboard,
         } else if (label && strcmp(label, "mic") == 0 && access("/tmp/0-voice-recording", F_OK) == 0) {
             key_color = (Color){0.9, 0.2, 0.2, 1.0}; // Red when recording
         } else if (is_active_modifier) {
-            if (is_shift_key && !state.shift_locked) {
-                // One-Shot Shift: Keep background normal (gray), outline will be orange
-                key_color = scheme.key_modifier;
-            } else if (is_shift_key || is_caps_lock) {
-                // Locked Shift or Caps Lock: Fill background with Orange
+            bool is_locked = false;
+            if (is_shift_key) is_locked = state.shift_locked;
+            else if (is_ctrl_key) is_locked = (state.ctrl_state == KBD_MODIFIER_LOCKED);
+            else if (is_alt_key)  is_locked = (state.alt_state  == KBD_MODIFIER_LOCKED);
+            else if (is_meta_key) is_locked = (state.meta_state == KBD_MODIFIER_LOCKED);
+            else if (is_caps_lock) is_locked = state.caps_lock;
+
+            if (is_locked) {
+                // Locked modifier: Fill background with Orange
                 key_color = apple_orange;
             } else {
-                key_color = scheme.shift_active; // Other modifiers use default active color
+                // One-Shot modifier: Keep background normal (gray), outline will be active color
+                key_color = scheme.key_modifier;
             }
         } else if (meta->is_special) {
             key_color = scheme.key_special;
@@ -127,7 +141,14 @@ void ui_render_draw_keyboard(Renderer *renderer, Keyboard *keyboard,
 
         // 4. Active modifier accent border
         if (is_active_modifier && !is_pressed) {
-            Color outline_color = (is_shift_key || is_caps_lock) ? apple_orange : scheme.accent;
+            bool is_locked = false;
+            if (is_shift_key) is_locked = state.shift_locked;
+            else if (is_ctrl_key) is_locked = (state.ctrl_state == KBD_MODIFIER_LOCKED);
+            else if (is_alt_key)  is_locked = (state.alt_state  == KBD_MODIFIER_LOCKED);
+            else if (is_meta_key) is_locked = (state.meta_state == KBD_MODIFIER_LOCKED);
+            else if (is_caps_lock) is_locked = state.caps_lock;
+
+            Color outline_color = is_locked ? apple_orange : scheme.accent;
             renderer_draw_rectangle_outline(renderer, kb,
                 color_with_opacity(outline_color, opacity * 0.9),
                 2.0, KEY_CORNER_RADIUS);

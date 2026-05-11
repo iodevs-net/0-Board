@@ -34,6 +34,9 @@ typedef struct {
     double initial_opacity;
     bool show_menu_bar;
     int initial_size; // 0=small, 1=medium, 2=large
+    int key_event_delay_us;
+    char voice_recording_flag[128];
+    char voice_script_path[256];
 } UIConfig;
 
 // Create UI instance

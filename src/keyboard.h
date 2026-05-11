@@ -20,10 +20,19 @@ typedef enum {
     NUM_KEYBOARD_LAYERS
 } KeyboardLayer;
 
+typedef enum {
+    KBD_MODIFIER_OFF = 0,
+    KBD_MODIFIER_ONESHOT = 1,
+    KBD_MODIFIER_LOCKED = 2
+} KbdModifierState;
+
 // Keyboard state
 typedef struct {
     KeyboardLayer current_layer;
     bool shift_locked;
+    KbdModifierState ctrl_state;
+    KbdModifierState alt_state;
+    KbdModifierState meta_state;
     bool caps_lock;
     bool num_lock;
     bool scroll_lock;
@@ -45,6 +54,12 @@ void keyboard_press_key(Keyboard *kb, int key_index);
 
 // Notify that a key was sent to the system (for one-shot logic)
 void keyboard_notify_key_sent(Keyboard *kb, int key_index);
+
+// Get currently active modifiers (mask: 1=Shift, 2=Ctrl, 4=Alt, 8=Meta)
+int keyboard_get_active_modifiers(const Keyboard *kb);
+
+// Get modifiers for a specific keysym (includes Caps Lock → Shift for letters)
+int keyboard_get_modifiers_for_keysym(const Keyboard *kb, KeySym sym);
 
 // Release a key by index  
 void keyboard_release_key(Keyboard *kb, int key_index);

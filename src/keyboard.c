@@ -32,6 +32,12 @@ void keyboard_press_key(Keyboard *kb, int key_index) {
     KeyDef *key = &kb->layout->keys[key_index];
     if (key->flags & KEYFLAG_SHIFT) {
         kbd_state_toggle_shift(&kb->state);
+    } else if (key->flags & KEYFLAG_CTRL) {
+        kbd_state_toggle_ctrl(&kb->state);
+    } else if (key->flags & KEYFLAG_ALT) {
+        kbd_state_toggle_alt(&kb->state);
+    } else if (key->flags & KEYFLAG_META) {
+        kbd_state_toggle_meta(&kb->state);
     } else if (key->normal == XK_Caps_Lock) {
         kbd_state_toggle_caps(&kb->state);
     }
@@ -51,6 +57,16 @@ void keyboard_notify_key_sent(Keyboard *kb, int key_index) {
     
     KeyDef *key = &kb->layout->keys[key_index];
     kbd_state_notify_key_sent(&kb->state, key);
+}
+
+int keyboard_get_active_modifiers(const Keyboard *kb) {
+    if (!kb) return 0;
+    return kbd_state_get_modifier_mask(&kb->state);
+}
+
+int keyboard_get_modifiers_for_keysym(const Keyboard *kb, KeySym sym) {
+    if (!kb) return 0;
+    return kbd_state_get_modifier_mask_for_key(&kb->state, sym);
 }
 
 KeySym keyboard_get_keysym(const Keyboard *kb, int key_index) {
@@ -101,6 +117,9 @@ KeyboardState keyboard_get_state(const Keyboard *kb) {
     if (kb) {
         s.current_layer = (KeyboardLayer)kb->state.active_layer;
         s.shift_locked = kb->state.shift_locked;
+        s.ctrl_state = (KbdModifierState)kb->state.ctrl_state;
+        s.alt_state = (KbdModifierState)kb->state.alt_state;
+        s.meta_state = (KbdModifierState)kb->state.meta_state;
         s.caps_lock = kb->state.caps_lock;
         s.pressed_key_index = kb->state.pressed_key_index;
         s.dirty = kb->state.dirty;

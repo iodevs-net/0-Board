@@ -12,19 +12,27 @@
 
 void config_load_defaults(Config *config) {
     if (!config) return;
-    
+
     config->window_width = 800;
     config->window_height = 360;
     config->window_opacity = 0.94;
     config->window_borderless = true;
     config->window_skip_taskbar = true;
-    
+
     config->keyboard_size = 1; // Medium
     config->color_scheme = 1;  // Dark
     config->show_menu_bar = false;
-    
+
     config->double_buffering = true;
     config->lazy_font_loading = true;
+
+    config->key_event_delay_us = DEFAULT_KEY_EVENT_DELAY_US;
+    strncpy(config->voice_recording_flag, DEFAULT_VOICE_RECORDING_FLAG,
+            sizeof(config->voice_recording_flag) - 1);
+    config->voice_recording_flag[sizeof(config->voice_recording_flag) - 1] = '\0';
+    strncpy(config->voice_script_path, DEFAULT_VOICE_SCRIPT_PATH,
+            sizeof(config->voice_script_path) - 1);
+    config->voice_script_path[sizeof(config->voice_script_path) - 1] = '\0';
 }
 
 static void trim(char *str) {
@@ -104,6 +112,16 @@ bool config_load_from_file(Config *config, const char *filename) {
             config->double_buffering = (strcmp(value, "true") == 0);
         } else if (strcmp(key, "lazy_font_loading") == 0) {
             config->lazy_font_loading = (strcmp(value, "true") == 0);
+        } else if (strcmp(key, "key_event_delay_us") == 0) {
+            config->key_event_delay_us = atoi(value);
+        } else if (strcmp(key, "voice_recording_flag") == 0) {
+            strncpy(config->voice_recording_flag, value,
+                    sizeof(config->voice_recording_flag) - 1);
+            config->voice_recording_flag[sizeof(config->voice_recording_flag) - 1] = '\0';
+        } else if (strcmp(key, "voice_script_path") == 0) {
+            strncpy(config->voice_script_path, value,
+                    sizeof(config->voice_script_path) - 1);
+            config->voice_script_path[sizeof(config->voice_script_path) - 1] = '\0';
         }
         // Unknown keys are ignored
     }
@@ -135,7 +153,11 @@ bool config_save_to_file(const Config *config, const char *filename) {
     fprintf(f, "\n");
     fprintf(f, "double_buffering = %s\n", config->double_buffering ? "true" : "false");
     fprintf(f, "lazy_font_loading = %s\n", config->lazy_font_loading ? "true" : "false");
-    
+    fprintf(f, "key_event_delay_us = %d\n", config->key_event_delay_us);
+    fprintf(f, "\n");
+    fprintf(f, "voice_recording_flag = %s\n", config->voice_recording_flag);
+    fprintf(f, "voice_script_path = %s\n", config->voice_script_path);
+
     fclose(f);
     return true;
 }

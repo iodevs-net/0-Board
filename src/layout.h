@@ -14,6 +14,9 @@
 #define KEYFLAG_SHIFT    1
 #define KEYFLAG_SYMBOLS  2
 #define KEYFLAG_MODIFIER 4
+#define KEYFLAG_CTRL     8
+#define KEYFLAG_ALT      16
+#define KEYFLAG_META     32
 
 typedef struct {
     KeySym normal;

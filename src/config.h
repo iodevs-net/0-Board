@@ -16,16 +16,27 @@ typedef struct {
     double window_opacity;
     bool window_borderless;
     bool window_skip_taskbar;
-    
+
     // Keyboard settings
     int keyboard_size; // 0=small, 1=medium, 2=large
     int color_scheme;  // 0=light, 1=dark, 2=auto
     bool show_menu_bar;
-    
+
     // Advanced settings
     bool double_buffering;
     bool lazy_font_loading;
+
+    // Key event timing (microseconds delay between press/release)
+    int key_event_delay_us;
+
+    // Voice feature paths
+    char voice_recording_flag[128];  // Path to recording flag file
+    char voice_script_path[256];     // Path to voice script binary
 } Config;
+
+#define DEFAULT_VOICE_RECORDING_FLAG "/tmp/0-voice-recording"
+#define DEFAULT_VOICE_SCRIPT_PATH   "/usr/local/bin/0-voice"
+#define DEFAULT_KEY_EVENT_DELAY_US  10000
 
 // Load default configuration
 void config_load_defaults(Config *config);

@@ -7,9 +7,10 @@
 #include <X11/keysym.h>
 #include "debug.h"
 
-static bool is_letter(KeySym sym) {
-    return (sym >= XK_a && sym <= XK_z) || 
+bool kbd_state_is_letter(KeySym sym) {
+    return (sym >= XK_a && sym <= XK_z) ||
            (sym >= XK_A && sym <= XK_Z) ||
+           (sym == XK_ntilde) || (sym == XK_Ntilde) ||
            (sym == 0xf1) || (sym == 0xd1); // ñ / Ñ
 }
 
@@ -20,7 +21,7 @@ Layer kbd_state_get_effective_layer(const KbdState *state, KeyDef *key) {
     if (state->active_layer == LAYER_SHIFT) return LAYER_SHIFT;
 
     // Si CapsLock está activo, solo usamos la capa Shift para letras
-    if (state->caps_lock && is_letter(key->normal)) return LAYER_SHIFT;
+    if (state->caps_lock && kbd_state_is_letter(key->normal)) return LAYER_SHIFT;
 
     return state->active_layer;
 }
@@ -43,16 +44,61 @@ void kbd_state_toggle_shift(KbdState *state) {
     state->dirty = true;
 }
 
+static void toggle_modifier(ModifierState *ms, const char *name) {
+    if (*ms == MODIFIER_OFF) {
+        *ms = MODIFIER_ONESHOT;
+        LOG_DEBUG("State: %s One-Shot active", name);
+    } else if (*ms == MODIFIER_ONESHOT) {
+        *ms = MODIFIER_LOCKED;
+        LOG_DEBUG("State: %s LOCKED active", name);
+    } else {
+        *ms = MODIFIER_OFF;
+        LOG_DEBUG("State: %s OFF", name);
+    }
+}
+
+void kbd_state_toggle_ctrl(KbdState *state) {
+    if (!state) return;
+    toggle_modifier(&state->ctrl_state, "Ctrl");
+    state->dirty = true;
+}
+
+void kbd_state_toggle_alt(KbdState *state) {
+    if (!state) return;
+    toggle_modifier(&state->alt_state, "Alt");
+    state->dirty = true;
+}
+
+void kbd_state_toggle_meta(KbdState *state) {
+    if (!state) return;
+    toggle_modifier(&state->meta_state, "Meta");
+    state->dirty = true;
+}
+
 void kbd_state_notify_key_sent(KbdState *state, KeyDef *key) {
     if (!state || !key) return;
 
-    // Si estamos en modo One-Shot y pulsamos una tecla normal
+    // Shift One-Shot logic
     if (state->active_layer == LAYER_SHIFT && !state->shift_locked) {
         if (!(key->flags & KEYFLAG_SHIFT)) {
             state->active_layer = LAYER_NORMAL;
             state->dirty = true;
             LOG_DEBUG("State: One-Shot Shift consumed by key");
         }
+    }
+
+    // Ctrl/Alt/Meta One-Shot logic
+    if (state->ctrl_state == MODIFIER_ONESHOT && !(key->flags & KEYFLAG_CTRL)) {
+        state->ctrl_state = MODIFIER_OFF;
+        state->dirty = true;
+    }
+    if (state->alt_state == MODIFIER_ONESHOT && !(key->flags & KEYFLAG_ALT)) {
+        state->alt_state = MODIFIER_OFF;
+        state->dirty = true;
+    }
+    if (state->meta_state == MODIFIER_ONESHOT && !(key->flags & KEYFLAG_META)) {
+        state->meta_state = MODIFIER_OFF;
+        state->dirty = true;
     }
 }
 
@@ -67,7 +113,30 @@ void kbd_state_reset(KbdState *state) {
     if (!state) return;
     state->active_layer = LAYER_NORMAL;
     state->shift_locked = false;
+    state->ctrl_state = MODIFIER_OFF;
+    state->alt_state = MODIFIER_OFF;
+    state->meta_state = MODIFIER_OFF;
     state->caps_lock = false;
     state->pressed_key_index = -1;
     state->dirty = true;
+}
+
+int kbd_state_get_modifier_mask(const KbdState *state) {
+    if (!state) return 0;
+    int mask = 0;
+    if (state->active_layer == LAYER_SHIFT || state->shift_locked) mask |= 1; // Shift
+    if (state->ctrl_state != MODIFIER_OFF) mask |= 2; // Ctrl
+    if (state->alt_state != MODIFIER_OFF) mask |= 4; // Alt
+    if (state->meta_state != MODIFIER_OFF) mask |= 8; // Meta
+    return mask;
+}
+
+int kbd_state_get_modifier_mask_for_key(const KbdState *state, KeySym keysym) {
+    if (!state) return 0;
+    int mask = kbd_state_get_modifier_mask(state);
+    // Caps Lock: produce uppercase via Shift only for letter keys
+    if (state->caps_lock && kbd_state_is_letter(keysym)) {
+        mask |= 1; // Include Shift
+    }
+    return mask;
 }

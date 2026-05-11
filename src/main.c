@@ -16,13 +16,18 @@
 #include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 
 static volatile sig_atomic_t g_shutdown = 0;
+volatile sig_atomic_t g_toggle_visibility = 0;
 
 static void signal_handler(int sig) {
-    (void)sig;
-    g_shutdown = 1;
+    if (sig == SIGUSR1) {
+        g_toggle_visibility = 1;
+    } else {
+        g_shutdown = 1;
+    }
 }
 
 static void error_exit(const char *message) {
@@ -39,6 +44,7 @@ int main() {
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGHUP, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
 
     Config config;
     config_load_defaults(&config);
@@ -100,7 +106,7 @@ int main() {
     EngineConfig engine_config = {
         .display = x11_window_get_display(window),
         .use_xtest = true,
-        .event_delay_ms = 0
+        .event_delay_us = config.key_event_delay_us
     };
 
     Engine *engine = engine_create(&engine_config);
@@ -111,8 +117,15 @@ int main() {
         .title = "0-board",
         .initial_opacity = config.window_opacity,
         .show_menu_bar = false,
-        .initial_size = config.keyboard_size
+        .initial_size = config.keyboard_size,
+        .key_event_delay_us = config.key_event_delay_us,
     };
+    strncpy(ui_config.voice_recording_flag, config.voice_recording_flag,
+            sizeof(ui_config.voice_recording_flag) - 1);
+    ui_config.voice_recording_flag[sizeof(ui_config.voice_recording_flag) - 1] = '\0';
+    strncpy(ui_config.voice_script_path, config.voice_script_path,
+            sizeof(ui_config.voice_script_path) - 1);
+    ui_config.voice_script_path[sizeof(ui_config.voice_script_path) - 1] = '\0';
 
     UI *ui = ui_create(&ui_config, keyboard, renderer, window, font_manager);
     if (!ui) error_exit("Failed to create UI");
@@ -121,7 +134,6 @@ int main() {
     printf("0-board ready.\n");
 
     // 9. Main loop — pass shutdown flag
-    x11_window_show(window);
     ui_run_with_shutdown(ui, &g_shutdown);
 
     // 10. Cleanup

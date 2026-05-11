@@ -96,6 +96,13 @@ void x11_window_move_resize(X11Window *window, int x, int y, int width, int heig
 // Get current window size
 void x11_window_get_size(X11Window *window, int *width, int *height);
 
+// Get window dimensions directly
+int x11_window_get_width(X11Window *window);
+int x11_window_get_height(X11Window *window);
+
+// Check if X11 error occurred (non-fatal, for recovery)
+bool x11_window_has_error(X11Window *window);
+
 // Set window title
 void x11_window_set_title(X11Window *window, const char *title);
 

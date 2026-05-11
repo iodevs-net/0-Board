@@ -12,9 +12,28 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 
 static bool rectangle_contains(Rectangle r, int x, int y) {
     return x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height;
+}
+
+/**
+ * exec_async: Fork + exec a command non-blocking.
+ * Returns PID of child, -1 on error.
+ * Child runs in background, no zombie if we don't waitpid.
+ * We set SIGCHLD to SIG_IGN in main() or handle properly.
+ */
+static pid_t exec_async(const char *path, char *const argv[]) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child: exec the binary
+        setsid(); // New session so signals don't propagate
+        execvp(path, argv);
+        // If exec fails, exit silently
+        _exit(127);
+    }
+    return pid;
 }
 
 void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) {
@@ -27,13 +46,9 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     int keyboard_top = ui->menu_visible ? MENU_BAR_HEIGHT : 0;
     bool on_edge = false;
 
-    // Top edge
     if (wy >= keyboard_top && wy < keyboard_top + edge) on_edge = true;
-    // Bottom edge
     if (wy > ui->current_height - edge) on_edge = true;
-    // Left edge
     if (wx < edge) on_edge = true;
-    // Right edge
     if (wx > ui->current_width - edge) on_edge = true;
 
     if (button == 2 || (button == 1 && on_edge)) {
@@ -50,9 +65,8 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     int mx = wx;
     int my = wy;
 
-    // Menu bar buttons — dynamic hitboxes from cache
+    // Menu bar buttons
     if (my < MENU_BAR_HEIGHT && ui->menu_visible) {
-        // Check cached hitboxes
         if (rectangle_contains(ui->menu_btn_bounds[0], mx, my)) {
             ui_set_opacity(ui, ui->opacity - MENU_OPACITY_STEP);
         } else if (rectangle_contains(ui->menu_btn_bounds[1], mx, my)) {
@@ -81,60 +95,72 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
                 ui_toggle_dock_position(ui);
             } else if (ui->engine) {
                 KeySym sym = keyboard_get_keysym(ui->keyboard, i);
-                
+
                 if (sym != 0) {
-                    // Right Command (⌘) toggles keyboard size
                     if (sym == XK_Super_R) {
-                        // Capture anchor point (center of the size key) to keep pointer over it
+                        // Size toggle with anchor
                         int wx, wy;
-                        // ATOMIC RESIZE ANCHORING:
-                        // 1. Capture the current world position of the key being clicked.
-                        // This center-point (anchor_x, anchor_y) is where the user's 
-                        // finger/pointer is fixed.
                         x11_window_get_position(ui->window, &wx, &wy);
                         Rectangle old_k = ui->key_bounds[i];
-                        
+
                         double anchor_x = wx + old_k.x + old_k.width / 2.0;
                         double anchor_y = wy + old_k.y + old_k.height / 2.0;
 
-                        // 2. Change the logical size. ui_set_size_index now only
-                        // calculates the NEW internal layout without moving the window.
                         int next_size = (ui->size_index + 1) % 3;
                         ui_set_size_index(ui, next_size);
 
-                        // 3. Re-calculate window coordinates so the NEW key center 
-                        // aligns exactly with the OLD screen anchor.
                         Rectangle new_k = ui->key_bounds[i];
                         int new_wx = (int)(anchor_x - (new_k.x + new_k.width / 2.0));
                         int new_wy = (int)(anchor_y - (new_k.y + new_k.height / 2.0));
-                        
-                        // Enforce docking rules (e.g., Y=0 if docked top)
+
                         if (ui->docked_top) new_wy = 0;
-                        
-                        // 4. APPLY ATOMICALLY. x11_window_move_resize uses XMoveResizeWindow
-                        // to ensure no intermediate flicker or WM corrections.
+
                         ui_apply_geometry(ui, new_wx, new_wy);
                     } else if (sym == XK_Super_L) {
-                        // Microphone key toggles recording
-                        if (access("/tmp/0-voice-recording", F_OK) == 0) {
-                            // Recording is active, kill arecord to stop immediately
-                            // arecord will return, and the 0-voice script will proceed to transcription
-                            system("pkill -TERM arecord");
+                        // Microphone key: async voice recording toggle
+                        const char *flag = ui->config.voice_recording_flag;
+                        if (flag && flag[0] && access(flag, F_OK) == 0) {
+                            // Recording active → stop
+                            exec_async("/usr/bin/pkill", (char *[]) {
+                                "pkill", "-TERM", "arecord", NULL
+                            });
+                            // Also try killall
+                            exec_async("/usr/bin/killall", (char *[]) {
+                                "killall", "-q", "arecord", NULL
+                            });
                         } else {
-                            // Start new recording
-                            system("/usr/local/bin/0-voice &");
+                            // Start recording
+                            const char *script = ui->config.voice_script_path;
+                            if (script && script[0]) {
+                                exec_async(script, (char *[]) {
+                                    (char *)script, NULL
+                                });
+                            }
                         }
                         ui->dirty = true;
                     } else {
                         keyboard_press_key(ui->keyboard, i);
-                        
-                        // Send the key via the engine
-                        engine_send_key(ui->engine, sym, true);
-                        usleep(10000); // 10ms delay for stability
-                        engine_send_key(ui->engine, sym, false);
-                        engine_flush(ui->engine);
-                        
-                        keyboard_notify_key_sent(ui->keyboard, i);
+
+                        KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];
+                        bool is_modifier = (key->flags & (KEYFLAG_SHIFT | KEYFLAG_CTRL | KEYFLAG_ALT | KEYFLAG_META)) ||
+                                         (key->normal == XK_Caps_Lock);
+
+                        if (!is_modifier) {
+                            // Use keysym-aware modifiers (handles Caps Lock → Shift for letters)
+                            int mods = keyboard_get_modifiers_for_keysym(ui->keyboard, sym);
+                            engine_send_key_ex(ui->engine, sym, true, mods);
+                            XFlush(x11_window_get_display(ui->window));
+
+                            // Event delay: small enough to not block UI, large enough for key repeat
+                            if (ui->config.key_event_delay_us > 0) {
+                                usleep(ui->config.key_event_delay_us);
+                            }
+
+                            engine_send_key_ex(ui->engine, sym, false, mods);
+                            engine_flush(ui->engine);
+
+                            keyboard_notify_key_sent(ui->keyboard, i);
+                        }
                     }
                 }
             }
@@ -155,9 +181,7 @@ void ui_handle_button_release(UI *ui, int x, int y, int button) {
 
 void ui_handle_motion(UI *ui, int rx, int ry) {
     if (!ui || !ui->dragging || !ui->window) return;
-
     x11_window_move(ui->window, rx - ui->drag_offset_x, ry - ui->drag_offset_y);
-    // Do NOT set dirty — window move doesn't change content
 }
 
 void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
@@ -167,7 +191,6 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
 
     switch (event->type) {
         case WINDOW_EVENT_RESIZE:
-            // Ignore resize events during drag — they're just position changes
             if (ui->dragging) break;
             if (event->width != ui->current_width || event->height != ui->current_height) {
                 ui->current_width = event->width;
@@ -177,7 +200,6 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
             break;
 
         case WINDOW_EVENT_EXPOSE:
-            // Window needs repaint (uncovered, mapped, etc.)
             ui->dirty = true;
             break;
 

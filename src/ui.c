@@ -265,11 +265,26 @@ void ui_run_with_shutdown(UI *ui, volatile sig_atomic_t *shutdown_flag) {
     // Initial render
     ui_render_frame(ui);
 
+    bool visible = true;
+
     while (!ui->should_close) {
         // Check external shutdown flag (signals)
         if (shutdown_flag && *shutdown_flag) {
             ui->should_close = true;
             break;
+        }
+
+        // Handle visibility toggle via SIGUSR1 (0-Board toggle)
+        extern volatile sig_atomic_t g_toggle_visibility;
+        if (g_toggle_visibility) {
+            g_toggle_visibility = 0;
+            visible = !visible;
+            if (visible) {
+                x11_window_show(ui->window);
+                ui->dirty = true;
+            } else {
+                x11_window_hide(ui->window);
+            }
         }
 
         bool needs_render = false;
