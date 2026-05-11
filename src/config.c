@@ -43,6 +43,15 @@ void config_load_defaults(Config *config) {
         strncpy(config->font_dir, "./assets/fonts", sizeof(config->font_dir) - 1);
         config->font_dir[sizeof(config->font_dir) - 1] = '\0';
     }
+    // Also check if installed via make install
+    char install_fonts[512];
+    if (home) {
+        snprintf(install_fonts, sizeof(install_fonts), "%s/.local/share/0-board/fonts", home);
+        if (access(install_fonts, F_OK) == 0) {
+            strncpy(config->font_dir, install_fonts, sizeof(config->font_dir) - 1);
+            config->font_dir[sizeof(config->font_dir) - 1] = '\0';
+        }
+    }
 }
 
 static void trim(char *str) {

@@ -33,8 +33,20 @@ release: clean $(TARGET)
 
 clean:
 	rm -f src/*.o $(TARGET)
+install: release
+	install -d $(BINDIR) $(DATADIR)/fonts
+	install -m 755 0-board $(BINDIR)/
+	install -m 644 assets/fonts/extras/ttf/Inter-Light.ttf $(DATADIR)/fonts/
+	install -m 644 assets/fonts/extras/ttf/Inter-Regular.ttf $(DATADIR)/fonts/
+	@echo "0-board installed to $(BINDIR)/"
+	@echo "Fonts installed to $(DATADIR)/fonts/"
+	@echo "Set font_dir = $(DATADIR)/fonts in ~/.config/0-board/config.ini for portable install"
+PREFIX ?= $(HOME)/.local
+BINDIR ?= $(PREFIX)/bin
+DATADIR ?= $(PREFIX)/share/0-board
 
-.PHONY: all debug release clean test
+
+.PHONY: all debug release clean test install
 
 # Test target
 TEST_SRC = tests/test_keyboard_state.c tests/test_layout_keys.c tests/test_engine_keysym.c tests/test_engine_integration.c
