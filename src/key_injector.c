@@ -7,7 +7,7 @@
 
 bool key_injector_is_modifier(KeyDef *key) {
     if (!key) return false;
-    return (key->flags & (KEYFLAG_SHIFT | KEYFLAG_CTRL | KEYFLAG_ALT | KEYFLAG_META)) ||
+    return (key->flags & (KEYFLAG_SHIFT | KEYFLAG_CTRL | KEYFLAG_ALT | KEYFLAG_META | KEYFLAG_FN)) ||
            (key->normal == XK_Caps_Lock);
 }
 

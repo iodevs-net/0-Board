@@ -31,6 +31,7 @@ typedef struct {
     KbdModifierState alt_state;
     KbdModifierState meta_state;
     bool caps_lock;
+    bool fn_active;
     bool num_lock;
     bool scroll_lock;
     int pressed_key_index;

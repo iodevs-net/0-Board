@@ -213,11 +213,13 @@ static void ui_update_bg_cache(UI *ui) {
 static void ui_render_frame(UI *ui) {
     KeyboardState kb_state = keyboard_get_state(ui->keyboard);
     bool layer_changed = ((int)kb_state.current_layer != ui->last_rendered_layer) || 
-                         (kb_state.caps_lock != ui->last_rendered_caps);
+                         (kb_state.caps_lock != ui->last_rendered_caps) ||
+                         (kb_state.fn_active != ui->last_rendered_fn);
 
     if (ui->bg_dirty || layer_changed || !ui->bg_cache) {
         ui->last_rendered_layer = (int)kb_state.current_layer;
         ui->last_rendered_caps = kb_state.caps_lock;
+        ui->last_rendered_fn = kb_state.fn_active;
         ui_update_bg_cache(ui);
     }
 

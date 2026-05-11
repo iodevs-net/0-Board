@@ -48,6 +48,7 @@ struct UI {
     bool bg_dirty;
     int last_rendered_layer;
     bool last_rendered_caps;
+    bool last_rendered_fn;
     
     // Interaction state
     DragState drag;

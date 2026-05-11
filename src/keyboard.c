@@ -124,6 +124,7 @@ KeyboardState keyboard_get_state(const Keyboard *kb) {
         s.alt_state = (KbdModifierState)kb->state.alt_state;
         s.meta_state = (KbdModifierState)kb->state.meta_state;
         s.caps_lock = kb->state.caps_lock;
+        s.fn_active = kb->state.fn_active;
         s.pressed_key_index = kb->state.pressed_key_index;
         s.dirty = kb->state.dirty;
     }
