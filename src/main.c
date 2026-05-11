@@ -42,6 +42,9 @@ int main() {
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGHUP, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
+    // Ignore SIGCHLD so fork+exec children are auto-reaped (no zombies)
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGCHLD, &sa, NULL);
 
     Config config;
     config_load_defaults(&config);
