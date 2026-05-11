@@ -34,120 +34,97 @@ static pid_t exec_async(const char *path, char *const argv[]) {
     return pid;
 }
 
+static bool is_on_edge(UI *ui, int wx, int wy) {
+    int edge = 12;
+    int top = ui->menu_visible ? MENU_BAR_HEIGHT : 0;
+    return (wy >= top && wy < top + edge) ||
+           (wy > ui->current_height - edge) ||
+           (wx < edge) ||
+           (wx > ui->current_width - edge);
+}
+
+static bool handle_menu_click(UI *ui, int mx, int my) {
+    if (!ui->menu_visible || my >= MENU_BAR_HEIGHT) return false;
+    if (rectangle_contains(ui->menu_btn_bounds[0], mx, my)) { ui_set_opacity(ui, ui->opacity - MENU_OPACITY_STEP); return true; }
+    if (rectangle_contains(ui->menu_btn_bounds[1], mx, my)) { ui_set_opacity(ui, ui->opacity + MENU_OPACITY_STEP); return true; }
+    if (rectangle_contains(ui->menu_btn_bounds[2], mx, my)) { ui_set_color_scheme(ui, (ui->color_scheme_index + 1) % NUM_COLOR_SCHEMES); return true; }
+    if (rectangle_contains(ui->menu_btn_bounds[3], mx, my)) { ui->should_close = true; return true; }
+    return false;
+}
+
+static bool handle_special_key(UI *ui, int key_index, const char *label) {
+    (void)key_index;
+    if (!label) return false;
+    if (strcmp(label, "fn") == 0) {
+        if (ui->menu_visible) ui_hide_menu(ui); else ui_show_menu(ui);
+        return true;
+    }
+    if (strcmp(label, "↑↓") == 0) {
+        ui_toggle_dock_position(ui);
+        return true;
+    }
+    return false;
+}
+
+static void handle_voice_key(UI *ui) {
+    const char *flag = ui->config.voice_recording_flag;
+    if (!flag || !flag[0]) return;
+    if (access(flag, F_OK) == 0) {
+        exec_async("/usr/bin/pkill", (char*[]){"pkill", "-TERM", "arecord", NULL});
+        exec_async("/usr/bin/killall", (char*[]){"killall", "-q", "arecord", NULL});
+    } else {
+        const char *script = ui->config.voice_script_path;
+        if (script && script[0])
+            exec_async(script, (char*[]){(char*)script, NULL});
+    }
+    ui->dirty = true;
+}
+
+static void handle_size_toggle(UI *ui, int key_index) {
+    int wx, wy;
+    x11_window_get_position(ui->window, &wx, &wy);
+    Rectangle old_k = ui->key_bounds[key_index];
+    double anchor_x = wx + old_k.x + old_k.width / 2.0;
+    double anchor_y = wy + old_k.y + old_k.height / 2.0;
+    int next_size = (ui->size_index + 1) % 3;
+    ui_set_size_index(ui, next_size);
+    Rectangle new_k = ui->key_bounds[key_index];
+    int new_wx = (int)(anchor_x - (new_k.x + new_k.width / 2.0));
+    int new_wy = (int)(anchor_y - (new_k.y + new_k.height / 2.0));
+    if (ui->docked_top) new_wy = 0;
+    ui_apply_geometry(ui, new_wx, new_wy);
+}
+
 void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) {
     if (!ui) return;
-
-    // Drag zone: any edge of the keyboard
-    int edge = ui->current_height * 0.07;
-    if (edge < 12) edge = 12;
-
-    int keyboard_top = ui->menu_visible ? MENU_BAR_HEIGHT : 0;
-    bool on_edge = false;
-
-    if (wy >= keyboard_top && wy < keyboard_top + edge) on_edge = true;
-    if (wy > ui->current_height - edge) on_edge = true;
-    if (wx < edge) on_edge = true;
-    if (wx > ui->current_width - edge) on_edge = true;
-
-    if (button == 2 || (button == 1 && on_edge)) {
+    if (button == 2 || (button == 1 && is_on_edge(ui, wx, wy))) {
         drag_start(&ui->drag, ui->window, rx, ry);
         return;
     }
-
     if (button != 1) return;
+    if (handle_menu_click(ui, wx, wy)) return;
 
-    int mx = wx;
-    int my = wy;
-
-    // Menu bar buttons
-    if (my < MENU_BAR_HEIGHT && ui->menu_visible) {
-        if (rectangle_contains(ui->menu_btn_bounds[0], mx, my)) {
-            ui_set_opacity(ui, ui->opacity - MENU_OPACITY_STEP);
-        } else if (rectangle_contains(ui->menu_btn_bounds[1], mx, my)) {
-            ui_set_opacity(ui, ui->opacity + MENU_OPACITY_STEP);
-        } else if (rectangle_contains(ui->menu_btn_bounds[2], mx, my)) {
-            ui_set_color_scheme(ui, (ui->color_scheme_index + 1) % NUM_COLOR_SCHEMES);
-        } else if (rectangle_contains(ui->menu_btn_bounds[3], mx, my)) {
-            ui->should_close = true;
-        }
-        return;
-    }
-
-    // Check keys
     for (int i = 0; i < ui->key_count; i++) {
         Rectangle *kb = &ui->key_bounds[i];
-        if (mx >= kb->x && mx <= kb->x + kb->width &&
-            my >= kb->y && my <= kb->y + kb->height) {
+        if (wx < kb->x || wx > kb->x + kb->width || wy < kb->y || wy > kb->y + kb->height)
+            continue;
 
-            const char *label = keyboard_get_key_label(ui->keyboard, i);
+        const char *label = keyboard_get_key_label(ui->keyboard, i);
+        if (handle_special_key(ui, i, label)) break;
 
-            // "fn" key toggles menu
-            if (label && strcmp(label, "fn") == 0) {
-                if (ui->menu_visible) ui_hide_menu(ui);
-                else ui_show_menu(ui);
-            } else if (label && strcmp(label, "↑↓") == 0) {
-                ui_toggle_dock_position(ui);
-            } else if (ui->engine) {
-                KeySym sym = keyboard_get_keysym(ui->keyboard, i);
+        KeySym sym = keyboard_get_keysym(ui->keyboard, i);
+        if (sym == XK_Super_R) { handle_size_toggle(ui, i); break; }
+        if (sym == XK_Super_L) { handle_voice_key(ui); break; }
 
-                if (sym != 0) {
-                    if (sym == XK_Super_R) {
-                        // Size toggle with anchor
-                        int wx, wy;
-                        x11_window_get_position(ui->window, &wx, &wy);
-                        Rectangle old_k = ui->key_bounds[i];
-
-                        double anchor_x = wx + old_k.x + old_k.width / 2.0;
-                        double anchor_y = wy + old_k.y + old_k.height / 2.0;
-
-                        int next_size = (ui->size_index + 1) % 3;
-                        ui_set_size_index(ui, next_size);
-
-                        Rectangle new_k = ui->key_bounds[i];
-                        int new_wx = (int)(anchor_x - (new_k.x + new_k.width / 2.0));
-                        int new_wy = (int)(anchor_y - (new_k.y + new_k.height / 2.0));
-
-                        if (ui->docked_top) new_wy = 0;
-
-                        ui_apply_geometry(ui, new_wx, new_wy);
-                    } else if (sym == XK_Super_L) {
-                        // Microphone key: async voice recording toggle
-                        const char *flag = ui->config.voice_recording_flag;
-                        if (flag && flag[0] && access(flag, F_OK) == 0) {
-                            // Recording active → stop
-                            exec_async("/usr/bin/pkill", (char *[]) {
-                                "pkill", "-TERM", "arecord", NULL
-                            });
-                            // Also try killall
-                            exec_async("/usr/bin/killall", (char *[]) {
-                                "killall", "-q", "arecord", NULL
-                            });
-                        } else {
-                            // Start recording
-                            const char *script = ui->config.voice_script_path;
-                            if (script && script[0]) {
-                                exec_async(script, (char *[]) {
-                                    (char *)script, NULL
-                                });
-                            }
-                        }
-                        ui->dirty = true;
-                    } else {
-                        keyboard_press_key(ui->keyboard, i);
-
-                        KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];
-                        if (!key_injector_is_modifier(key)) {
-                            int mods = keyboard_get_modifiers_for_keysym(ui->keyboard, sym);
-
-                            key_injector_send(ui->engine, x11_window_get_display(ui->window),
-                                              sym, mods, ui->config.key_event_delay_us);
-                            keyboard_notify_key_sent(ui->keyboard, i);
-                        }
-                    }
-                }
-            }
-            break;
+        keyboard_press_key(ui->keyboard, i);
+        KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];
+        if (!key_injector_is_modifier(key)) {
+            int mods = keyboard_get_modifiers_for_keysym(ui->keyboard, sym);
+            key_injector_send(ui->engine, x11_window_get_display(ui->window),
+                              sym, mods, ui->config.key_event_delay_us);
+            keyboard_notify_key_sent(ui->keyboard, i);
         }
+        break;
     }
 }
 
