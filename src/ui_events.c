@@ -63,16 +63,11 @@ static bool handle_special_key(UI *ui, int key_index, const char *label) {
 }
 
 static void handle_voice_key(UI *ui) {
-    const char *flag = ui->config.voice_recording_flag;
-    if (!flag || !flag[0]) return;
-    if (access(flag, F_OK) == 0) {
-        exec_async("/usr/bin/pkill", (char*[]){"pkill", "-TERM", "arecord", NULL});
-        exec_async("/usr/bin/killall", (char*[]){"killall", "-q", "arecord", NULL});
-    } else {
-        const char *script = ui->config.voice_script_path;
-        if (script && script[0])
-            exec_async(script, (char*[]){(char*)script, NULL});
-    }
+    // Voice recording disabled — Cherry Trail SST audio DSP conflicts
+    // with the touch controller when arecord captures from the default device.
+    // The mic key still provides visual toggle feedback.
+    // To re-enable: create /usr/local/bin/0-voice with proper ALSA device
+    // parameters for the Intel SST DSP.
     ui->dirty = true;
 }
 
