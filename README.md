@@ -1,139 +1,224 @@
-# 0-board
+# 0-Board
 
 ![0-board Virtual Keyboard](assets/images/screenshot.png)
 ![0-board Translucent Overlay](assets/images/screenshot_translucent.png)
 
-A modern virtual keyboard built from scratch with a focus on clean architecture, maintainability, and IA-agent friendliness.
+A virtual keyboard for Linux tablets, written in C99. ~10MB RAM, 67KB binary, zero dependencies beyond Cairo+X11.
 
-## Philosophy
+Designed for the HP x2 210 G1 (Atom Z8300, 2-4GB RAM) but runs on any X11 Linux system.
 
-- **Pure C Architecture**: Written in pure C99 for maximum efficiency, portability, and near-zero resource consumption. No C++ dependencies or heavy runtimes.
-- **Clean Architecture**: Dependency injection, no global state, SRP (modules ≤100 lines).
-- **Maintainability**: Self-documenting code, constants in `constants.h`, error handling via `error_exit()`.
-- **IA-agent Readability**: Predictable structure, minimal magic numbers, clear interfaces.
-- **LEAN**: Lazy loading of fonts (~5MB RAM), double buffer optimized, event-driven rendering.
+---
 
-## Why "0-Board"? (Zero-Resource Architecture)
+## Quick Usage
 
-0-Board is designed to achieve near-zero CPU and memory footprint:
+### Basics
 
-- **Surface Caching**: Static elements are pre-rendered once. Typing costs only a simple `BitBlt` operation.
-- **Event-Driven**: Consumes 0% CPU while idle by blocking on system events (no polling).
-- **Metadata Pre-calculation**: All font scales and layout math are pre-calculated to avoid logic branches in the render loop.
-- **Minimal Footprint**: ~10MB RSS RAM usage. No heavy frameworks (Qt/GTK) or Electron bloat.
+| Key | Action |
+|-----|--------|
+| Tap a letter/number | Types it |
+| **Shift** (`⇧`) | First tap = one-shot (next letter is uppercase, then reverts). Second tap = locked (all caps until tapped again). Third tap = off. |
+| **Caps Lock** (`⇪`) | Toggle caps lock |
+| **Ctrl**, **alt** | Same as Shift: one-shot → locked → off |
+| **↑↓** | Move keyboard to top or bottom of screen |
 
-### Benchmark Comparison
+### FN Layer (development keys)
 
-| Metric           | xvkbd (The Classic) | Electron-based | **0-Board**        |
-| :--------------- | :------------------ | :------------- | :----------------- |
-| **Idle CPU**     | < 0.1%              | 5-10%          | **< 0.1%**         |
-| **Memory (RSS)** | ~7MB                | 150MB+         | **~10MB**          |
-| **Startup Time** | ~0.1s               | ~3.0s          | **< 0.1s**         |
-| **Graphics**     | Bitmap/Primitive    | Browser Engine | **Vector (Cairo)** |
-| **Binary Size**  | ~150KB              | 100MB+         | **~180KB**         |
+**`fn`** activates a function-key row. First tap = one-shot, second = locked, third = off.
 
-## User Experience (UX)
+When FN is active, the top number row changes to:
 
-0-Board is designed to be as comfortable for the user as it is efficient for the system:
-
-- **Easy Resizing**: Cycle through Small, Medium, and Large sizes with a single tap.
-- **Custom Transparency**: Real-time opacity control to balance visibility and screen real estate.
-- **Deep Customization**: Edit `.theme` files in `assets/themes/` to control every color (background, keys, text, etc.).
-- **Modern Themes**: Support for curated Light, Dark, and Custom modes.
-- **Voice Dictation (Zero-Friction)**: A seamlessly integrated voice-to-text dictation feature triggered by the `mic` key. Uses Whisper-Large-v3 via API. Built with a pure "zero-resource" architecture—instead of heavy IPCs, it relies on a lightweight atomic lock file (`/tmp/0-voice-recording`) that the UI loop polls every 500ms at `0.0%` CPU cost, dynamically overriding the rendering pass to turn the microphone key **red** while listening.
-- **Compact Format**: Minimalist design that maximizes screen space on tablets and small screens.
-- **Quick Docking**: Instantly toggle between top and bottom screen positions.
-- **Audit-Ready**: Deeply documented code for easy auditing, maintenance, and customization.
-
-## Customization
-
-0-Board loves Linux-style customization. You can define your own themes in `assets/themes/`:
-
-```ini
-# assets/themes/my_cool_theme.theme
-background      = #1c1c1e
-text            = #ffffff
-key_normal      = #3a3a3c
-key_pressed     = #636366
-key_modifier    = #2c2c2e  # Shift, Ctrl, Alt
-key_text        = #3a3a3c  # Letters
-key_number      = #3a3a3c  # Numbers row
-key_special     = #48484a  # Enter, Space, Arrows
-shift_active    = #0a84ff  # Highlight when Shift is on
+```
+esc  F1  F2  F3  F4  F5  F6  F7  F8  F9  F10  F11  F12
 ```
 
-## Key Features
+Tap any FN key — it's sent and FN auto-deactivates (one-shot).  
+Double-tap `fn` to lock FN on. Tap `fn` again to turn it off.
 
-- **Vector Rendering**: Cairo-based, antialiased, native transparency.
-- **Minimalist UI**: Focus on functionality, real-time customization (opacity, color schemes, fonts).
-- **Backend Abstraction**: X11 backend with Wayland-ready interfaces.
-- **Modular Design**: Separated into core (keyboard, layout), render (graphics abstraction), platform (system-specific), and UI coordination.
+### Menu & Controls
+
+**`fn` + `size`** opens the menu bar with:
+
+| Control | Action |
+|---------|--------|
+| **− / +** | Decrease / increase keyboard opacity |
+| **Palette icon** | Cycle through color themes (Space Gray, Silver) |
+| **Red close button** | Exit 0-Board |
+
+The menu bar also shows the app branding. Tap outside the menu or press `fn` + `size` again to close it.
+
+### Resize & Position
+
+| Key | Action |
+|-----|--------|
+| **size** | Cycle keyboard size: Small → Medium → Large |
+| **Drag edge** | Touch and drag any edge of the keyboard to reposition |
+| **↑↓** | Snap keyboard to top or bottom of screen |
+
+### Voice Dictation
+
+| Key | Action |
+|-----|--------|
+| **mic** | Start/stop voice recording (requires external script at `/usr/local/bin/0-voice`) |
+
+### Modifier States (visual feedback)
+
+- **One-shot**: Tap Shift/Ctrl/Alt — the next non-modifier key gets the modifier applied. Key border turns accent blue.
+- **Locked**: Double-tap a modifier — it stays active. Key fills orange.
+- Tap again to unlock.
+
+---
+
+## Quick Reference (Key Labels)
+
+```
+Row 1:  ` ~  1 !  2 @  3 #  4 $  5 %  6 ^  7 &  8 *  9 (  0 )  - _  = +  ⌫
+        esc  F1  F2  F3  F4  F5  F6  F7  F8  F9  F10  F11  F12     (FN active)
+
+Row 2:  ⇥  q  w  e  r  t  y  u  i  o  p  [ {  ] }  \ |
+
+Row 3:  ⇪  a  s  d  f  g  h  j  k  l  ñ  ; :  ' "  ⏎
+
+Row 4:  ⇧  z  x  c  v  b  n  m  , <  . >  / ?  ↑↓
+
+Row 5:  fn  ctrl  alt  mic  [space]  size  alt  ←  ↑  ↓  →
+```
+
+---
+
+## Install
+
+### From source
+
+```bash
+# Dependencies (Debian/Ubuntu)
+sudo apt install libcairo2-dev libx11-dev libxtst-dev libfontconfig1-dev pkg-config make gcc
+
+# Build
+make
+
+# Run
+./0-board
+```
+
+### Install to ~/.local
+
+```bash
+make install
+# Binary: ~/.local/bin/0-board
+# Fonts:  ~/.local/share/0-board/fonts/
+```
+
+### On Atom/Cherry Trail CPUs (Z8300 and similar)
+
+Build with conservative instruction set:
+
+```bash
+make CC=gcc CFLAGS="-Wall -Wextra -O2 -march=x86-64 -mtune=atom -flto -I./src $(pkg-config --cflags cairo fontconfig freetype2)" LIBS="-lX11 -lXtst -lcairo -lfontconfig -lfreetype -lm"
+```
+
+---
+
+## Layout
+
+All developer symbols are accessible:
+
+| Key | Shift gives | Used for |
+|-----|-------------|----------|
+| `` ` `` | `~` | Backtick for shell commands, tilde |
+| `[` | `{` | Curly braces (code blocks) |
+| `]` | `}` | Closing curly brace |
+| `\` | `\|` | Pipe operator |
+| `1`-`0` | `!@#$%^&*()` | All shifted symbols |
+| `-` | `_` | Underscore |
+| `=` | `+` | Plus |
+| `;` | `:` | Colon |
+| `'` | `"` | Double quote |
+| `,` | `<` | Less than |
+| `.` | `>` | Greater than |
+| `/` | `?` | Question mark |
+| `ñ` | `Ñ` | Spanish ñ |
+
+FN layer adds: **Escape**, **F1** through **F12**.
+
+---
+
+## Performance
+
+| Metric | 0-Board | Notes |
+|--------|---------|-------|
+| **Idle CPU** | < 0.1% | Event-driven, blocks on X11 |
+| **Memory (RSS)** | ~10MB | Dual-pass render + surface cache |
+| **Binary size** | 67KB | Stripped, LTO, no C++ runtime |
+| **Startup** | < 0.1s | Lazy font loading |
+| **Dependencies** | Cairo, X11, Xtst, FontConfig | No Qt/GTK/Electron |
+
+---
 
 ## Project Structure
 
 ```
-0-board/
+0-Board/
 ├── src/
-│   ├── core/         # Business logic (keyboard, layout)
-│   ├── render/       # Graphics abstraction (Cairo implementation)
-│   ├── platform/     # System-specific backends (X11)
-│   └── ui/           # UI coordination
-├── assets/           # Fonts and other assets
-├── bench/            # Benchmarks
+│   ├── main.c              # Entry point
+│   ├── layout.c            # Keyboard layout definition (Apple Magic layout)
+│   ├── layout_engine.c     # Geometry calculation for key positions
+│   ├── keyboard.c          # Keyboard state machine
+│   ├── keyboard_state.c    # Modifier one-shot/locked logic
+│   ├── keysym_util.c       # Shared keysym mapping (shift pairs)
+│   ├── engine.c            # XTest key injection
+│   ├── key_injector.c      # Key injection helper (modifier detection)
+│   ├── x11_window.c        # X11 window management
+│   ├── x11_events.c        # X11 event loop and error recovery
+│   ├── x11_cairo_bridge.c  # Double-buffered Cairo+X11 rendering
+│   ├── cairo_renderer.c    # Cairo drawing primitives
+│   ├── renderer.c          # Abstract renderer interface
+│   ├── font_manager.c      # Font discovery via FontConfig
+│   ├── colors.c            # Color schemes
+│   ├── config.c            # Config file parser (X Macro table)
+│   ├── ui.c                # UI main loop and orchestration
+│   ├── ui_events.c         # Touch/click event handling
+│   ├── ui_drag.c           # Window drag support
+│   ├── ui_render_helper.c  # Keyboard rendering (static + dynamic passes)
+│   ├── debug.c             # Debug logging
+├── assets/
+│   ├── fonts/              # Inter Light + Regular (800KB)
+│   ├── themes/             # Theme files
+│   └── images/             # Screenshots
+├── tests/
+│   ├── test_common.h       # Test harness
+│   ├── test_keyboard_state.c  # 27 state machine tests
+│   ├── test_layout_keys.c     # 63 layout integrity tests
+│   ├── test_engine_keysym.c   # 16 keysym mapping tests
+│   └── test_engine_integration.c # 7 engine contract tests
+├── docs/superpowers/       # Spec and plan documents
 └── Makefile
 ```
 
-## Build and Run
+---
 
-### Dependencies
-
-- Debian/Ubuntu: `sudo apt install libcairo2-dev libx11-dev libxtst-dev libfontconfig1-dev pkg-config`
-- Fedora/RHEL: `sudo dnf install cairo-devel libX11-devel libXtst-devel pkg-config`
-
-### Compilation
+## Tests
 
 ```bash
-make          # produces ./0-board
-make debug    # debug build with logs
-make release  # release build
-make clean
+make test
 ```
 
-### Execution
+113 tests covering: keyboard state machine (shift, caps, ctrl, alt, fn), layout integrity (all keys present, init idempotent), keysym resolution (shift pairs, letter detection), and engine contract (null guards, XTest required).
 
-```bash
-./0-board
-```
+---
 
-## Code Conventions
+## TDE/Trinity Integration
 
-- Constants defined in `constants.h` (no magic numbers).
-- Self-documenting names preferred over comments.
-- Error handling via `error_exit()` function.
-- Debug logging with `DEBUG_INIT()` and `LOG_*` macros (enabled in debug build).
-- Testability through dependency injection (no complex mocks needed).
+For HP x2 210 G1 and similar detachables running TDE:
 
-## Entry Point
+- **Login screen**: 0-Board launches via TDM Xsetup (`/etc/trinity/tdm/Xsetup`)
+- **User session**: Autostart via `~/.trinity/Autostart/0-board.desktop`
+- **Lock screen**: `kdesktop_lock` wrapper launches 0-Board. Window rule (`keepabove`) keeps it above the lock dialog. Touch input bypasses the keyboard grab (XGrabKeyboard only, no pointer grab).
+- **Monitor daemon**: `lock-monitor.sh` ensures 0-Board is running during lock/unlock transitions.
 
-Execution begins in `src/main.c` and follows the sequence:
-config → layout → keyboard → font manager → window → renderer → engine → UI → main loop
-
-## Verification
-
-- No formal test suite; verification via manual execution and debug logs.
-- Debug logs written to `debug.log` when built with `make debug`.
-
-## Contributing
-
-This project is designed for contribution by both humans and IA agents. Please adhere to:
-
-1.  SRP: Keep modules ≤100 lines.
-2.  Use constants.h for all magic numbers.
-3.  Prefer self-documenting code over comments.
-4.  Dependencies injected, not global.
-5.  Interfaces abstract for backend interchangeability.
+---
 
 ## License
 
-MIT - See LICENSE file for details.
-Developed by **Leonardo Vergara** (<leonardovergaramarin@gmail.com>)
+MIT — see LICENSE file.
+
+Developed by **Leonardo Vergara** <leonardovergaramarin@gmail.com>
