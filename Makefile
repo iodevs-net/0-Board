@@ -37,7 +37,7 @@ clean:
 .PHONY: all debug release clean test
 
 # Test target
-TEST_SRC = tests/test_keyboard_state.c tests/test_layout_keys.c tests/test_engine_keysym.c
+TEST_SRC = tests/test_keyboard_state.c tests/test_layout_keys.c tests/test_engine_keysym.c tests/test_engine_integration.c
 TEST_CFLAGS = -Wall -Wextra -O0 -g -I./src -I./tests
 TEST_LIBS = -lX11 -lXtst -lcairo -lfontconfig -lfreetype -lm
 
@@ -56,3 +56,5 @@ tests/test_layout_keys: tests/test_layout_keys.c src/layout.c src/debug.c
 
 tests/test_engine_keysym: tests/test_engine_keysym.c src/keysym_util.c
 	$(CC) $(TEST_CFLAGS) $^ -o $@
+tests/test_engine_integration: tests/test_engine_integration.c src/engine.c src/keysym_util.c src/debug.c
+	$(CC) $(TEST_CFLAGS) $^ -o $@ -lX11 -lXtst

@@ -40,75 +40,63 @@ int engine_send_key(Engine *engine, KeySym keysym, bool pressed) {
     return engine_send_key_ex(engine, keysym, pressed, 0);
 }
 
-int engine_send_key_ex(Engine *engine, KeySym keysym, bool pressed, int modifiers) {
-    if (!engine || !engine->display || keysym == 0) {
-        return -1;
+static KeyCode keysym_to_keycode(Display *dpy, KeySym sym, int *modifiers) {
+    KeyCode kc = XKeysymToKeycode(dpy, sym);
+    if (kc) return kc;
+
+    // Uppercase letter -> lowercase + Shift
+    if (sym >= XK_A && sym <= XK_Z) {
+        kc = XKeysymToKeycode(dpy, sym - XK_A + XK_a);
+        if (kc) { *modifiers |= 1; return kc; }
     }
 
-    if (!engine->use_xtest) {
-        fprintf(stderr, "engine_send_key: XTest required\n");
-        return -1;
-    }
-
-    // Try direct keysym → keycode first
-    KeyCode kc = XKeysymToKeycode(engine->display, keysym);
-
-    // If no direct mapping, try base keysym + add modifiers
-    // Example: XK_exclam may not have a keycode, but XK_1 does
-    if (!kc) {
-        KeySym base = keysym;
-        // Strip shift: if uppercase letter, convert to lowercase
-        if (keysym >= XK_A && keysym <= XK_Z) {
-            base = keysym - XK_A + XK_a;
-            modifiers |= 1; // Need Shift for uppercase
-        }
-        // For other shifted symbols, try the unshifted version
-        // XK_exclam → XK_1, XK_at → XK_2, etc.
-        else if (keysym >= XK_exclam && keysym <= XK_asciitilde) {
-            KeySym found = keysym_get_base(keysym);
-            if (found) {
-                base = found;
-                modifiers |= 1;
-            }
-        }
-        kc = XKeysymToKeycode(engine->display, base);
-        if (!kc) return -1; // Truly unmappable
-    }
-
-    // Modifiers mask: 1=Shift, 2=Ctrl, 4=Alt, 8=Meta
-    KeyCode shift_kc = XKeysymToKeycode(engine->display, XK_Shift_L);
-    KeyCode ctrl_kc  = XKeysymToKeycode(engine->display, XK_Control_L);
-    KeyCode alt_kc   = XKeysymToKeycode(engine->display, XK_Alt_L);
-    KeyCode meta_kc  = XKeysymToKeycode(engine->display, XK_Super_L);
-
-    bool need_shift = (modifiers & 1);
-    bool need_ctrl  = (modifiers & 2);
-    bool need_alt   = (modifiers & 4);
-    bool need_meta  = (modifiers & 8);
-
-    // If key IS a modifier, don't double-press it
-    if (keysym == XK_Shift_L || keysym == XK_Shift_R) need_shift = false;
-    if (keysym == XK_Control_L || keysym == XK_Control_R) need_ctrl = false;
-    if (keysym == XK_Alt_L || keysym == XK_Alt_R) need_alt = false;
-    if (keysym == XK_Super_L || keysym == XK_Super_R) need_meta = false;
-
-    if (pressed) {
-        if (need_shift) XTestFakeKeyEvent(engine->display, shift_kc, True, 0);
-        if (need_ctrl)  XTestFakeKeyEvent(engine->display, ctrl_kc,  True, 0);
-        if (need_alt)   XTestFakeKeyEvent(engine->display, alt_kc,   True, 0);
-        if (need_meta)  XTestFakeKeyEvent(engine->display, meta_kc,  True, 0);
-    }
-
-    XTestFakeKeyEvent(engine->display, kc, pressed, 0);
-
-    if (!pressed) {
-        if (need_shift) XTestFakeKeyEvent(engine->display, shift_kc, False, 0);
-        if (need_ctrl)  XTestFakeKeyEvent(engine->display, ctrl_kc,  False, 0);
-        if (need_alt)   XTestFakeKeyEvent(engine->display, alt_kc,   False, 0);
-        if (need_meta)  XTestFakeKeyEvent(engine->display, meta_kc,  False, 0);
+    // Shifted symbol -> base + Shift
+    KeySym base = keysym_get_base(sym);
+    if (base) {
+        kc = XKeysymToKeycode(dpy, base);
+        if (kc) { *modifiers |= 1; return kc; }
     }
 
     return 0;
+}
+
+static int modifier_keys_for_mask(Display *dpy, int modifiers, KeyCode *out, int max, KeySym self) {
+    int n = 0;
+    if ((modifiers & 1) && self != XK_Shift_L && self != XK_Shift_R)
+        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Shift_L);
+    if ((modifiers & 2) && self != XK_Control_L && self != XK_Control_R)
+        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Control_L);
+    if ((modifiers & 4) && self != XK_Alt_L && self != XK_Alt_R)
+        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Alt_L);
+    if ((modifiers & 8) && self != XK_Super_L && self != XK_Super_R)
+        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Super_L);
+    return n;
+}
+
+static int inject_key_sequence(Display *dpy, KeyCode kc, KeyCode *mods, int n, Bool pressed) {
+    if (pressed) {
+        for (int i = 0; i < n; i++)
+            XTestFakeKeyEvent(dpy, mods[i], True, 0);
+    }
+    XTestFakeKeyEvent(dpy, kc, pressed, 0);
+    if (!pressed) {
+        for (int i = n - 1; i >= 0; i--)
+            XTestFakeKeyEvent(dpy, mods[i], False, 0);
+    }
+    return 0;
+}
+
+int engine_send_key_ex(Engine *engine, KeySym keysym, bool pressed, int modifiers) {
+    if (!engine || !engine->display || !engine->use_xtest || keysym == 0)
+        return -1;
+
+    KeyCode kc = keysym_to_keycode(engine->display, keysym, &modifiers);
+    if (!kc) return -1;
+
+    KeyCode mod_keys[4];
+    int mod_count = modifier_keys_for_mask(engine->display, modifiers, mod_keys, 4, keysym);
+
+    return inject_key_sequence(engine->display, kc, mod_keys, mod_count, pressed);
 }
 
 void engine_flush(Engine *engine) {
