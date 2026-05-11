@@ -36,6 +36,29 @@ typedef struct {
 #define DEFAULT_VOICE_SCRIPT_PATH   "/usr/local/bin/0-voice"
 #define DEFAULT_KEY_EVENT_DELAY_US  10000
 
+
+#define CONFIG_FIELDS_INT(X) \
+    X(window_width, 800) \
+    X(window_height, 360) \
+    X(keyboard_size, 1) \
+    X(color_scheme, 1) \
+    X(key_event_delay_us, 10000)
+
+#define CONFIG_FIELDS_DOUBLE(X) \
+    X(window_opacity, 0.94)
+
+#define CONFIG_FIELDS_BOOL(X) \
+    X(window_borderless, true) \
+    X(window_skip_taskbar, true) \
+    X(show_menu_bar, false) \
+    X(double_buffering, true) \
+    X(lazy_font_loading, true)
+
+#define CONFIG_FIELDS_STR(X) \
+    X(voice_recording_flag, "/tmp/0-voice-recording") \
+    X(voice_script_path, "/usr/local/bin/0-voice") \
+    X(font_dir, "")
+
 // Load default configuration
 void config_load_defaults(Config *config);
 
