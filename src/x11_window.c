@@ -1,40 +1,14 @@
 // SPDX-License-Identifier: MIT — see LICENSE file
 
 #include "x11_window.h"
+#include "x11_window_internal.h"
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "constants.h"
-#include <sys/select.h>
-#include <sys/time.h>
-#include <errno.h>
 
-struct X11Window {
-    Display *display;
-    Window window;
-    Visual *visual;
-    int depth;
-    int screen;
-    int width, height;
-    GC gc;
-    Atom wm_delete_window;
-    WindowEventCallback event_callback;
-    void *event_user_data;
-    bool owns_display;
-    bool error_state;
-};
-
-// X11 error recovery
-static int g_x11_error_occurred = 0;
-static Display *g_error_display = NULL;
-
-static int x11_error_handler(Display *dpy, XErrorEvent *err) {
-    (void)err;
-    if (dpy == g_error_display) g_x11_error_occurred = 1;
-    return 0;
-}
 
 static Atom get_atom(X11Window *win, const char *name) {
     if (!win || !win->display) return None;
@@ -52,8 +26,6 @@ X11Window* x11_window_create(WindowConfig *config) {
     win->owns_display = true;
     win->screen = DefaultScreen(win->display);
 
-    g_error_display = win->display;
-    XSetErrorHandler(x11_error_handler);
 
     XVisualInfo vi;
     int found = XMatchVisualInfo(win->display, win->screen, 32, TrueColor, &vi);
@@ -152,6 +124,7 @@ X11Window* x11_window_create(WindowConfig *config) {
 
     win->event_callback = NULL;
     win->event_user_data = NULL;
+    x11_register_window(win);
     return win;
 }
 
@@ -167,7 +140,7 @@ Visual* x11_window_get_visual(X11Window *w) { return w ? w->visual : NULL; }
 int x11_window_get_depth(X11Window *w) { return w ? w->depth : 0; }
 int x11_window_get_width(X11Window *w) { return w ? w->width : 0; }
 int x11_window_get_height(X11Window *w) { return w ? w->height : 0; }
-bool x11_window_has_error(X11Window *w) { return w ? w->error_state || g_x11_error_occurred : true; }
+bool x11_window_has_error(X11Window *w) { return w ? w->fatal_error : true; }
 
 Pixmap x11_window_create_pixmap(X11Window *w, int width, int height) {
     if (!w || !w->display || width <= 0 || height <= 0) return 0;
@@ -181,14 +154,13 @@ void x11_window_copy_area(X11Window *w, Pixmap src, int sx, int sy, int sw, int 
 
 void x11_window_move(X11Window *w, int x, int y) {
     if (!w || !w->display) return;
-    if (g_x11_error_occurred) return;
     XMoveWindow(w->display, w->window, x, y);
 }
 
 void x11_window_get_position(X11Window *w, int *x, int *y) {
     if (x) *x = 0;
     if (y) *y = 0;
-    if (!w || !w->display || g_x11_error_occurred) return;
+    if (!w || !w->display) return;
     Window child; int rx, ry;
     XTranslateCoordinates(w->display, w->window, DefaultRootWindow(w->display), 0, 0, &rx, &ry, &child);
     if (x) *x = rx;
@@ -196,13 +168,13 @@ void x11_window_get_position(X11Window *w, int *x, int *y) {
 }
 
 void x11_window_resize(X11Window *w, int width, int height) {
-    if (!w || !w->display || width <= 0 || height <= 0 || g_x11_error_occurred) return;
+    if (!w || !w->display || width <= 0 || height <= 0) return;
     XResizeWindow(w->display, w->window, width, height);
     w->width = width; w->height = height;
 }
 
 void x11_window_move_resize(X11Window *w, int x, int y, int width, int height) {
-    if (!w || !w->display || width <= 0 || height <= 0 || g_x11_error_occurred) return;
+    if (!w || !w->display || width <= 0 || height <= 0) return;
     XMoveResizeWindow(w->display, w->window, x, y, width, height);
     w->width = width; w->height = height;
 }
@@ -219,7 +191,7 @@ void x11_window_set_title(X11Window *w, const char *title) {
 }
 
 void x11_window_set_opacity(X11Window *w, double opacity) {
-    if (!w || g_x11_error_occurred) return;
+    if (!w) return;
     Atom oa = get_atom(w, "_NET_WM_WINDOW_OPACITY");
     if (oa != None) {
         unsigned long v = (unsigned long)(opacity * 0xFFFFFFFF);
@@ -229,7 +201,7 @@ void x11_window_set_opacity(X11Window *w, double opacity) {
 }
 
 void x11_window_set_always_on_top(X11Window *w, bool on_top) {
-    if (!w || g_x11_error_occurred) return;
+    if (!w) return;
     Atom wm_state = get_atom(w, "_NET_WM_STATE");
     Atom wm_above = get_atom(w, "_NET_WM_STATE_ABOVE");
     if (wm_state == None || wm_above == None) return;
@@ -245,113 +217,17 @@ void x11_window_set_always_on_top(X11Window *w, bool on_top) {
 }
 
 void x11_window_show(X11Window *w) {
-    if (!w || !w->display || g_x11_error_occurred) return;
+    if (!w || !w->display) return;
     XMapWindow(w->display, w->window);
     XFlush(w->display);
 }
 
 void x11_window_hide(X11Window *w) {
-    if (!w || !w->display || g_x11_error_occurred) return;
+    if (!w || !w->display) return;
     XUnmapWindow(w->display, w->window);
     XFlush(w->display);
 }
 
-static void process_xevent(X11Window *w, XEvent *xev) {
-    if (!w || !xev || !w->event_callback) return;
-    WindowEvent event = {0};
-    switch (xev->type) {
-        case Expose:
-            event.type = WINDOW_EVENT_EXPOSE;
-            event.x = xev->xexpose.x; event.y = xev->xexpose.y;
-            event.width = xev->xexpose.width; event.height = xev->xexpose.height;
-            break;
-        case ButtonPress:
-            event.type = WINDOW_EVENT_BUTTON_PRESS;
-            event.x = xev->xbutton.x; event.y = xev->xbutton.y;
-            event.root_x = xev->xbutton.x_root; event.root_y = xev->xbutton.y_root;
-            event.button = (MouseButton)xev->xbutton.button;
-            event.state = xev->xbutton.state;
-            break;
-        case ButtonRelease:
-            event.type = WINDOW_EVENT_BUTTON_RELEASE;
-            event.x = xev->xbutton.x; event.y = xev->xbutton.y;
-            event.root_x = xev->xbutton.x_root; event.root_y = xev->xbutton.y_root;
-            event.button = (MouseButton)xev->xbutton.button;
-            event.state = xev->xbutton.state;
-            break;
-        case MotionNotify:
-            event.type = WINDOW_EVENT_MOTION;
-            event.x = xev->xmotion.x; event.y = xev->xmotion.y;
-            event.root_x = xev->xmotion.x_root; event.root_y = xev->xmotion.y_root;
-            event.state = xev->xmotion.state;
-            break;
-        case ClientMessage:
-            if (w->wm_delete_window != None &&
-                (Atom)xev->xclient.data.l[0] == w->wm_delete_window) {
-                event.type = WINDOW_EVENT_CLOSE;
-            }
-            break;
-        case ConfigureNotify:
-            event.type = WINDOW_EVENT_RESIZE;
-            event.width = xev->xconfigure.width;
-            event.height = xev->xconfigure.height;
-            break;
-        default:
-            return;
-    }
-    w->event_callback(w, &event, w->event_user_data);
-}
-
-bool x11_window_process_events(X11Window *w) {
-    if (!w || !w->display || g_x11_error_occurred) return false;
-    XEvent xev;
-    bool had = false;
-    int pending = XPending(w->display);
-    // Limit per-frame events to prevent starvation on X11 flood
-    int max_events = 64;
-    while (pending > 0 && max_events > 0) {
-        XNextEvent(w->display, &xev);
-        process_xevent(w, &xev);
-        had = true;
-        pending--;
-        max_events--;
-    }
-    return had;
-}
-
-bool x11_window_wait_event(X11Window *w, int timeout_ms) {
-    if (!w || !w->display || g_x11_error_occurred) return false;
-
-    if (timeout_ms > 0) {
-        fd_set fds; FD_ZERO(&fds);
-        int fd = ConnectionNumber(w->display);
-        FD_SET(fd, &fds);
-        struct timeval tv;
-        tv.tv_sec = timeout_ms / 1000;
-        tv.tv_usec = (timeout_ms % 1000) * 1000;
-        int ret = select(fd + 1, &fds, NULL, NULL, &tv);
-        if (ret < 0 && errno != EINTR) {
-            w->error_state = true;
-            return false;
-        }
-        if (ret > 0) return x11_window_process_events(w);
-        return false;
-    }
-
-    // Blocking wait (capped at 500ms to check shutdown)
-    fd_set fds; FD_ZERO(&fds);
-    int fd = ConnectionNumber(w->display);
-    FD_SET(fd, &fds);
-    struct timeval tv = {0, 500000}; // 500ms max
-    int ret = select(fd + 1, &fds, NULL, NULL, &tv);
-    if (ret > 0) {
-        XEvent xev;
-        XNextEvent(w->display, &xev);
-        process_xevent(w, &xev);
-        return true;
-    }
-    return false;
-}
 
 void x11_window_close(X11Window *w) {
     if (!w || !w->display || !w->window) return;
@@ -361,6 +237,7 @@ void x11_window_close(X11Window *w) {
 
 void x11_window_destroy(X11Window *w) {
     if (!w) return;
+    x11_unregister_window(w);
     if (w->gc && w->display) XFreeGC(w->display, w->gc);
     if (w->window && w->display) XDestroyWindow(w->display, w->window);
     if (w->display && w->owns_display) XCloseDisplay(w->display);
