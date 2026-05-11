@@ -2,3 +2,6 @@
 0-board
 .gemini/
 debug.log
+tests/test_keyboard_state
+tests/test_layout_keys
+tests/test_engine_keysym

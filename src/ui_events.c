@@ -40,7 +40,7 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (!ui) return;
 
     // Drag zone: any edge of the keyboard
-    int edge = ui->current_height * DRAG_HANDLE_HEIGHT_RATIO;
+    int edge = ui->current_height * 0.07;
     if (edge < 12) edge = 12;
 
     int keyboard_top = ui->menu_visible ? MENU_BAR_HEIGHT : 0;

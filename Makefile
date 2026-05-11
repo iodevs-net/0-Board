@@ -32,4 +32,25 @@ release: clean $(TARGET)
 clean:
 	rm -f src/*.o $(TARGET)
 
-.PHONY: all debug release clean
+.PHONY: all debug release clean test
+
+# Test target
+TEST_SRC = tests/test_keyboard_state.c tests/test_layout_keys.c tests/test_engine_keysym.c
+TEST_CFLAGS = -Wall -Wextra -O0 -g -I./src -I./tests
+TEST_LIBS = -lX11 -lXtst -lcairo -lfontconfig -lfreetype -lm
+
+test: $(TEST_SRC:%.c=%)
+	@for t in $(TEST_SRC:%.c=%); do \
+		echo "Running $$t..."; \
+		./$$t && echo "PASS" || echo "FAIL"; \
+	done
+	@echo "All tests done."
+
+tests/test_keyboard_state: tests/test_keyboard_state.c src/keyboard_state.c src/layout.c src/keyboard.c src/debug.c
+	$(CC) $(TEST_CFLAGS) $^ -o $@ -lX11
+
+tests/test_layout_keys: tests/test_layout_keys.c src/layout.c src/debug.c
+	$(CC) $(TEST_CFLAGS) $^ -o $@
+
+tests/test_engine_keysym: tests/test_engine_keysym.c src/debug.c
+	$(CC) $(TEST_CFLAGS) $^ -o $@

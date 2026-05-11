@@ -26,10 +26,6 @@
 #define LABEL_SCALE_MODIFIER 0.70
 #define LABEL_SCALE_SYMBOL   0.85
 
-// Drag handle
-#define DRAG_HANDLE_HEIGHT_RATIO 0.07
-#define DRAG_PILL_WIDTH          40
-#define DRAG_PILL_HEIGHT         4
 
 // Menu bar
 #define MENU_BAR_HEIGHT    36
@@ -43,7 +39,6 @@
 #define KEY_SHADOW_OFFSET       1.5
 #define KEY_SHADOW_ALPHA        0.25
 #define CLEAR_ALPHA             0.0
-#define NUM_BUFFERED_SIZES      3
 
 // Font path (relative to binary)
 #define FONT_PATH_PRIMARY   "assets/fonts/extras/ttf/Inter-Light.ttf"
