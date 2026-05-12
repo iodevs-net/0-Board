@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static unsigned long now_ms(void) {
     struct timespec ts;
@@ -19,6 +20,54 @@ void touchpad_init(Touchpad *tp) {
     tp->acceleration = 2;
     tp->long_press_ms = 500;
     tp->scroll_sensitivity = 20;
+    tp->touchscreen_id = -1;
+}
+
+/* Find touchscreen xinput device ID by scanning names.
+ * We look for devices with "Touchscreen" or "touch" in the name.
+ * Returns device ID or -1 if not found. */
+static int find_touchscreen_id(void) {
+    /* Parse xinput list output: lines like "⎜   ↳ SYNA7508:00 06CB:1613    id=12  [slave  pointer  (2)]" */
+    FILE *fp = popen("xinput list 2>/dev/null", "r");
+    if (!fp) return -1;
+    char line[512];
+    int found_id = -1;
+    while (fgets(line, sizeof(line), fp)) {
+        /* Case-insensitive search for "touch" but exclude "touchpad" */
+        char lower[512];
+        int i;
+        for (i = 0; line[i] && i < 511; i++)
+            lower[i] = (line[i] >= 'A' && line[i] <= 'Z') ? line[i] + 32 : line[i];
+        lower[i] = '\0';
+        if (!strstr(lower, "touch") || strstr(lower, "touchpad"))
+            continue;
+        /* Extract id=N */
+        char *id_str = strstr(line, "id=");
+        if (id_str) {
+            found_id = atoi(id_str + 3);
+            if (found_id > 0) break;
+        }
+    }
+    pclose(fp);
+    return found_id;
+}
+
+void touchpad_grab_touchscreen(Touchpad *tp) {
+    if (tp->touchscreen_id < 0)
+        tp->touchscreen_id = find_touchscreen_id();
+    if (tp->touchscreen_id > 0) {
+        char cmd[64];
+        snprintf(cmd, sizeof(cmd), "xinput disable %d", tp->touchscreen_id);
+        if (system(cmd)) { /* best effort */ }
+    }
+}
+
+void touchpad_release_touchscreen(Touchpad *tp) {
+    if (tp->touchscreen_id > 0) {
+        char cmd[64];
+        snprintf(cmd, sizeof(cmd), "xinput enable %d", tp->touchscreen_id);
+        if (system(cmd)) { /* best effort */ }
+    }
 }
 
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
@@ -35,13 +84,6 @@ void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
             tp->virt_x = root_x;
             tp->virt_y = root_y;
         }
-    } else if (tp->display) {
-        /* Toque subsecuente: devolver cursor a la posicion logica.
-         * El touchscreen lo movio al punto de toque; lo restauramos. */
-        tp->warp_skip = 2;
-        XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
-                     tp->virt_x, tp->virt_y);
-        XFlush(tp->display);
     }
     tp->prev_x = touch_x;
     tp->prev_y = touch_y;
@@ -64,16 +106,10 @@ bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y) {
 
     if (dx == 0 && dy == 0) return false;
 
-    // Posicion virtual (para devolver el cursor al tocar de nuevo)
     tp->virt_x += dx * tp->acceleration;
     tp->virt_y += dy * tp->acceleration;
 
-    // Warp RELATIVO (dest_w = None): mueve el cursor un delta desde
-    // donde esta.  Si usaramos warp absoluto, el touchscreen ya habria
-    // movido el cursor al punto de toque, el delta seria enorme, y ese
-    // MotionNotify realimentaria el bucle.  Con warp relativo el delta
-    // siempre es pequeno y predecible.
-    tp->warp_skip = 1;
+    /* Move system pointer relatively */
     XWarpPointer(tp->display, None, None, 0, 0, 0, 0,
                  dx * tp->acceleration, dy * tp->acceleration);
     XFlush(tp->display);
@@ -84,6 +120,7 @@ bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y) {
 }
 
 int touchpad_up(Touchpad *tp, int touch_x, int touch_y, int *click_at_x, int *click_at_y) {
+    (void)touch_x; (void)touch_y; (void)click_at_x; (void)click_at_y;
     if (!tp->touching) return 0;
     tp->touching = false;
     unsigned long elapsed = now_ms() - tp->touch_start_time;
@@ -99,6 +136,7 @@ bool touchpad_is_scroll(Touchpad *tp, int touch_x, int touch_y) {
 }
 
 int touchpad_scroll_delta(Touchpad *tp, int touch_x, int touch_y) {
+    (void)touch_x;
     if (!tp->touching) return 0;
     int dy = touch_y - tp->prev_y;
     tp->prev_y = touch_y;

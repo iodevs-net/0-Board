@@ -30,6 +30,7 @@ typedef struct {
     int btn_right_x, btn_right_y;                // Right click button
     int exit_x, exit_y, exit_w, exit_h;
     int warp_skip;              // contador: ignorar N motion events tras XWarpPointer
+    int touchscreen_id;         // xinput device ID of touchscreen (-1 = unknown)
 
     // Display (set by user)
     Display *display;
@@ -37,6 +38,8 @@ typedef struct {
 } Touchpad;
 
 void touchpad_init(Touchpad *tp);
+void touchpad_grab_touchscreen(Touchpad *tp);
+void touchpad_release_touchscreen(Touchpad *tp);
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y);
 bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y);
 int touchpad_up(Touchpad *tp, int touch_x, int touch_y, int *click_at_x, int *click_at_y);

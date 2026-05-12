@@ -456,6 +456,9 @@ bool ui_is_dirty(const UI *ui) { return ui ? ui->dirty : false; }
 
 void ui_destroy(UI *ui) {
     if (!ui) return;
+    // Restore touchscreen if touchpad mode was active
+    if (ui->touchpad_mode)
+        touchpad_release_touchscreen(&ui->touchpad);
     if (ui->key_bounds) free(ui->key_bounds);
     if (ui->key_metadata) free(ui->key_metadata);
     if (ui->bg_cache) renderer_destroy_surface(ui->bg_cache);

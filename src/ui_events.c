@@ -98,41 +98,29 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (ui->touchpad_mode && handle_menu_click(ui, wx, wy)) return;
 
     if (ui->touchpad_mode) {
-        /* Salir del touchpad: boton rojo en esquina o tecla ⦿ */
+        /* Exit touchpad: red button or ⦿ key */
         Touchpad *tp = &ui->touchpad;
         if (wx >= tp->exit_x && wx <= tp->exit_x + tp->exit_w &&
             wy >= tp->exit_y && wy <= tp->exit_y + tp->exit_h) {
+            touchpad_release_touchscreen(tp);
             ui->touchpad_mode = false;
             ui->dirty = true;
             return;
         }
-        for (int i = 0; i < ui->key_count; i++) {
-            Rectangle *kb = &ui->key_bounds[i];
-            if (wx >= kb->x && wx <= kb->x + kb->width &&
-                wy >= kb->y && wy <= kb->y + kb->height) {
-                KeyDef *k = &keyboard_get_layout(ui->keyboard)->keys[i];
-                if (k->flags & KEYFLAG_TOUCHPAD) {
-                    ui->touchpad_mode = false;
-                    ui->dirty = true;
-                    return;
-                }
-            }
-        }
-        // Check buttons first
+        // Check L/R click buttons
         int btn;
-        if (touchpad_is_button(&ui->touchpad, wx, wy, &btn)) {
-            if (btn == 1) engine_send_mouse_click(ui->engine, 1);
-            else engine_send_mouse_click(ui->engine, btn);
+        if (touchpad_is_button(tp, wx, wy, &btn)) {
+            engine_send_mouse_click(ui->engine, btn);
             return;
         }
-        if (touchpad_is_scroll(&ui->touchpad, wx, wy)) {
-            // handled by motion
-            keyboard_press_key(ui->keyboard, 0); // visual feedback
+        // Scroll zone — mark touching for motion handler
+        if (touchpad_is_scroll(tp, wx, wy)) {
+            tp->touching = true;
+            tp->prev_y = wy;
             return;
         }
         // Regular touchpad area
-        touchpad_down(&ui->touchpad, wx, wy);
-        keyboard_press_key(ui->keyboard, 0); // visual feedback
+        touchpad_down(tp, wx, wy);
         return;
     }
 
@@ -163,18 +151,11 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
                 touchpad_init(&ui->touchpad);
                 ui->touchpad.display = x11_window_get_display(ui->window);
                 ui->touchpad.root = DefaultRootWindow(ui->touchpad.display);
-                // Get screen dimensions for touchpad area
                 ui->touchpad.width = ui->current_width;
                 ui->touchpad.height = ui->current_height;
-                int pad = ui->touchpad.width * 0.012;
-                int btn_h = 40;
-                int btn_w = ui->touchpad.width / 2 - pad * 2;
-                ui->touchpad.btn_h = btn_h;
-                ui->touchpad.btn_w = btn_w;
-                ui->touchpad.btn_y = ui->touchpad.height - btn_h - pad;
-                ui->touchpad.btn_left_x = pad;
-                ui->touchpad.btn_right_x = ui->touchpad.width / 2 + pad;
-                ui->touchpad.scroll_bar_x = ui->touchpad.width - 15;
+                touchpad_grab_touchscreen(&ui->touchpad);
+            } else {
+                touchpad_release_touchscreen(&ui->touchpad);
             }
             ui->dirty = true;
             break;
@@ -236,12 +217,15 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
 
         case WINDOW_EVENT_MOTION:
             if (ui->touchpad_mode) {
-                if (ui->touchpad.warp_skip > 0) {
-                    ui->touchpad.warp_skip--;  // ignorar evento generado por XWarpPointer
-                    break;
-                }
                 if (ui->touchpad.touching) {
-                    touchpad_motion(&ui->touchpad, event->x, event->y);
+                    // Check if in scroll zone
+                    if (touchpad_is_scroll(&ui->touchpad, event->x, event->y)) {
+                        int delta = touchpad_scroll_delta(&ui->touchpad, event->x, event->y);
+                        if (delta != 0)
+                            engine_send_scroll(ui->engine, delta > 0 ? 5 : 4);
+                    } else {
+                        touchpad_motion(&ui->touchpad, event->x, event->y);
+                    }
                 }
             } else {
                 ui_handle_motion(ui, event->root_x, event->root_y);

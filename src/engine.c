@@ -133,6 +133,17 @@ int engine_send_mouse_click(Engine *engine, int button) {
     return 0;
 }
 
+int engine_send_scroll(Engine *engine, int direction) {
+    if (!engine || !engine->display || !engine->use_xtest)
+        return -1;
+    if (direction < 4 || direction > 5)
+        return -1;
+    XTestFakeButtonEvent(engine->display, direction, True, 0);
+    XTestFakeButtonEvent(engine->display, direction, False, 0);
+    XFlush(engine->display);
+    return 0;
+}
+
 void engine_destroy(Engine *engine) {
     if (!engine) return;
 

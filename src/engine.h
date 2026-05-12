@@ -23,6 +23,7 @@ Engine* engine_create(EngineConfig *config);
 int engine_send_key(Engine *engine, KeySym keysym, bool pressed);
 int engine_send_key_ex(Engine *engine, KeySym keysym, bool pressed, int modifiers);
 int engine_send_mouse_click(Engine *engine, int button);
+int engine_send_scroll(Engine *engine, int direction); // 4=up, 5=down
 
 // Flush pending events to server
 void engine_flush(Engine *engine);

@@ -227,7 +227,7 @@ void ui_render_touchpad(Renderer *renderer, Touchpad *tp, Rectangle bounds, Colo
     tp->exit_h = 28;
     tp->exit_x = bounds.x + bounds.width - tp->exit_w - pad;
     tp->exit_y = bounds.y + pad;
-    Color exit_bg = {1.0, 0.37, 0.34, 0.8}; // semitransparent red
+    Color exit_bg = {1.0, 0.37, 0.34, 0.8};
     renderer_draw_rectangle(renderer,
         (Rectangle){tp->exit_x, tp->exit_y, tp->exit_w, tp->exit_h},
         exit_bg, tp->exit_h / 2);
@@ -235,33 +235,44 @@ void ui_render_touchpad(Renderer *renderer, Touchpad *tp, Rectangle bounds, Colo
     renderer_draw_text(renderer, "\u2B05",
         (Rectangle){tp->exit_x, tp->exit_y, tp->exit_w, tp->exit_h},
         exit_font, (Color){1,1,1,1}, ALIGN_CENTER, VALIGN_CENTER);
-    int bar_w = 12;
-    int bar_h = bounds.height - tp->btn_h - pad*3;
+
+    // Buttons at bottom — compute first so scroll bar height can reference
+    int btn_h = 40;
+    int btn_w = (bounds.width - pad*3) / 2;
+    int btn_y = bounds.y + bounds.height - btn_h - pad;
+
+    // Update struct for hit-testing
+    tp->btn_h = btn_h;
+    tp->btn_w = btn_w;
+    tp->btn_y = btn_y;
+    tp->btn_left_x = bounds.x + pad;
+    tp->btn_left_y = btn_y;
+    tp->btn_right_x = bounds.x + pad*2 + btn_w;
+    tp->btn_right_y = btn_y;
 
     // Scroll bar area (right edge)
-    Rectangle scroll = {bounds.x + bounds.width - bar_w - pad, bounds.y + pad, bar_w, bar_h};
+    int bar_w = 12;
+    int bar_h = bounds.height - btn_h - pad*3;
+    tp->scroll_bar_x = bounds.x + bounds.width - bar_w - pad;
+    tp->width = bounds.width;
+    tp->height = bounds.height;
+
+    Rectangle scroll = {tp->scroll_bar_x, bounds.y + pad, bar_w, bar_h};
     Color scroll_color = scheme.key_modifier;
     scroll_color.alpha *= 0.5;
     renderer_draw_rectangle(renderer, scroll, scroll_color, 6.0);
 
-    // Scroll bar indicator (pill in center)
+    // Scroll bar indicator (pill)
     Color pill_color = scheme.text_secondary;
     pill_color.alpha *= 0.3;
     Rectangle pill = {scroll.x + 2, scroll.y + bar_h/3, bar_w - 4, bar_h/3};
     renderer_draw_rectangle(renderer, pill, pill_color, 3.0);
 
-    // Buttons at bottom
-    int btn_h = tp->btn_h;
-    int btn_y = bounds.y + bounds.height - btn_h - pad;
-    int btn_w = (bounds.width - pad*3) / 2;
+    // Draw buttons
     Color btn_color = scheme.key_modifier;
-
-    // Left button
-    Rectangle left_btn = {bounds.x + pad, btn_y, btn_w, btn_h};
+    Rectangle left_btn = {tp->btn_left_x, btn_y, btn_w, btn_h};
     renderer_draw_rectangle(renderer, left_btn, btn_color, 8.0);
-
-    // Right button
-    Rectangle right_btn = {bounds.x + pad*2 + btn_w, btn_y, btn_w, btn_h};
+    Rectangle right_btn = {tp->btn_right_x, btn_y, btn_w, btn_h};
     renderer_draw_rectangle(renderer, right_btn, btn_color, 8.0);
 
     // Button labels
