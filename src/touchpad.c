@@ -24,18 +24,25 @@ void touchpad_init(Touchpad *tp) {
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
     tp->touching = true;
 
-    /* Leer posicion real del cursor para arrancar desde ahi */
-    Window root_ret, child_ret;
-    int root_x, root_y, win_x, win_y;
-    unsigned int mask;
-    if (tp->display) {
-        XQueryPointer(tp->display, tp->root, &root_ret, &child_ret,
-                      &root_x, &root_y, &win_x, &win_y, &mask);
-        tp->start_x = root_x;
-        tp->start_y = root_y;
+    if (tp->virt_x == 0 && tp->virt_y == 0) {
+        /* Primer toque: leer posicion real del cursor */
+        Window root_ret, child_ret;
+        int root_x, root_y, win_x, win_y;
+        unsigned int mask;
+        if (tp->display) {
+            XQueryPointer(tp->display, tp->root, &root_ret, &child_ret,
+                          &root_x, &root_y, &win_x, &win_y, &mask);
+            tp->virt_x = root_x;
+            tp->virt_y = root_y;
+        }
+    } else if (tp->display) {
+        /* Toque subsecuente: devolver cursor a la posicion logica.
+         * El touchscreen lo movio al punto de toque; lo restauramos. */
+        tp->warp_skip = 2;
+        XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
+                     tp->virt_x, tp->virt_y);
+        XFlush(tp->display);
     }
-    tp->virt_x = tp->start_x;
-    tp->virt_y = tp->start_y;
     tp->prev_x = touch_x;
     tp->prev_y = touch_y;
     tp->touch_start_x = touch_x;
@@ -57,13 +64,18 @@ bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y) {
 
     if (dx == 0 && dy == 0) return false;
 
-    // Update virtual pointer position
+    // Posicion virtual (para devolver el cursor al tocar de nuevo)
     tp->virt_x += dx * tp->acceleration;
     tp->virt_y += dy * tp->acceleration;
 
-    tp->warp_skip = 2;  // ignorar motion events que genere XWarpPointer
-    XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
-                 tp->virt_x, tp->virt_y);
+    // Warp RELATIVO (dest_w = None): mueve el cursor un delta desde
+    // donde esta.  Si usaramos warp absoluto, el touchscreen ya habria
+    // movido el cursor al punto de toque, el delta seria enorme, y ese
+    // MotionNotify realimentaria el bucle.  Con warp relativo el delta
+    // siempre es pequeno y predecible.
+    tp->warp_skip = 1;
+    XWarpPointer(tp->display, None, None, 0, 0, 0, 0,
+                 dx * tp->acceleration, dy * tp->acceleration);
     XFlush(tp->display);
 
     tp->prev_x = touch_x;
