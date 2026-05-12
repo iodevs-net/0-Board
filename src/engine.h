@@ -22,6 +22,7 @@ Engine* engine_create(EngineConfig *config);
 // Send a key event (press or release)
 int engine_send_key(Engine *engine, KeySym keysym, bool pressed);
 int engine_send_key_ex(Engine *engine, KeySym keysym, bool pressed, int modifiers);
+int engine_send_mouse_click(Engine *engine, int button);
 
 // Flush pending events to server
 void engine_flush(Engine *engine);

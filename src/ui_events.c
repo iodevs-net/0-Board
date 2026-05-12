@@ -114,6 +114,7 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             break;
         }
         if (sym == XK_Super_L) { keyboard_press_key(ui->keyboard, i); handle_voice_key(ui); break; }
+        if (sym == XK_Menu) { keyboard_press_key(ui->keyboard, i); engine_send_mouse_click(ui->engine, 3); break; }
 
         keyboard_press_key(ui->keyboard, i);
         KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];

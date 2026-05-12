@@ -105,6 +105,19 @@ void engine_flush(Engine *engine) {
     }
 }
 
+int engine_send_mouse_click(Engine *engine, int button) {
+    if (!engine || !engine->display || !engine->use_xtest)
+        return -1;
+    if (button < 1 || button > 3)
+        return -1;
+    XTestFakeButtonEvent(engine->display, button, True, 0);
+    XFlush(engine->display);
+    usleep(engine->event_delay_us);
+    XTestFakeButtonEvent(engine->display, button, False, 0);
+    XFlush(engine->display);
+    return 0;
+}
+
 void engine_destroy(Engine *engine) {
     if (!engine) return;
 
