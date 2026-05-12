@@ -119,6 +119,11 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             x11_window_hide(ui->window);
             XFlush(x11_window_get_display(ui->window));
             usleep(50000);
+            Display *dpy_mc = x11_window_get_display(ui->window);
+            XWarpPointer(dpy_mc, None, RootWindow(dpy_mc, DefaultScreen(dpy_mc)),
+                         0, 0, 0, 0, ui->saved_pointer_x, ui->saved_pointer_y);
+            XFlush(dpy_mc);
+            usleep(30000);
             engine_send_mouse_click(ui->engine, 3);
             usleep(50000);
             x11_window_show(ui->window);

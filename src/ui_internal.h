@@ -49,6 +49,8 @@ struct UI {
     int last_rendered_layer;
     bool last_rendered_caps;
     bool last_rendered_fn;
+    int saved_pointer_x;
+    int saved_pointer_y;
     
     // Interaction state
     DragState drag;

@@ -253,6 +253,15 @@ static void ui_render_frame(UI *ui) {
 
     ui->dirty = false;
     keyboard_mark_clean(ui->keyboard);
+    // Save pointer position for right-click key
+    Display *dpy__ = x11_window_get_display(ui->window);
+    Window root__, child__;
+    int rx__, ry__, wx__, wy__;
+    unsigned int mask__;
+    XQueryPointer(dpy__, RootWindow(dpy__, DefaultScreen(dpy__)),
+                  &root__, &child__, &rx__, &ry__, &wx__, &wy__, &mask__);
+    ui->saved_pointer_x = rx__;
+    ui->saved_pointer_y = ry__;
 }
 
 void ui_run(UI *ui) {
