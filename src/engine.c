@@ -3,6 +3,7 @@
 #include "engine.h"
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include <X11/XKBlib.h>
 #include <X11/extensions/XTest.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -63,34 +64,42 @@ static KeyCode keysym_to_keycode(Display *dpy, KeySym sym, int *modifiers) {
     return 0;
 }
 
-static int modifier_keys_for_mask(Display *dpy, int modifiers, KeyCode *out, int max, KeySym self) {
-    int n = 0;
-    if ((modifiers & 1) && self != XK_Shift_L && self != XK_Shift_R)
-        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Shift_L);
-    if ((modifiers & 2) && self != XK_Control_L && self != XK_Control_R)
-        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Control_L);
-    if ((modifiers & 4) && self != XK_Alt_L && self != XK_Alt_R) {
-        KeyCode altgr = XKeysymToKeycode(dpy, XK_ISO_Level3_Shift);
-        if (!altgr) altgr = XKeysymToKeycode(dpy, XK_Mode_switch);
-        if (!altgr) altgr = XKeysymToKeycode(dpy, XK_Alt_R);
-        if (!altgr) altgr = XKeysymToKeycode(dpy, XK_Alt_L);
-        if (n < max) out[n++] = altgr;
-    }
-    if ((modifiers & 8) && self != XK_Super_L && self != XK_Super_R)
-        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Super_L);
-    return n;
-}
 
-static int inject_key_sequence(Display *dpy, KeyCode kc, KeyCode *mods, int n, Bool pressed) {
+static int inject_key_sequence(Display *dpy, KeyCode kc, int ob_mods, Bool pressed) {
+    // ob_mods: 0=none, 1=Shift, 4=AltGr, 5=Shift+AltGr, etc.
+    // Uses XTest for Shift (always works) and XkbLockModifiers for
+    // non-Shift modifiers (Mod4/Mod5) which XTest can't always activate.
+    static int last_mods = 0;
+
     if (pressed) {
-        for (int i = 0; i < n; i++)
-            XTestFakeKeyEvent(dpy, mods[i], True, 0);
+        // For Shift, use XTest (works reliably)
+        if (ob_mods & 1) {
+            KeyCode skc = XKeysymToKeycode(dpy, XK_Shift_L);
+            if (skc) XTestFakeKeyEvent(dpy, skc, True, 0);
+        }
+        // For AltGr (Mod5), use XkbLockModifiers or try Mode_switch
+        if (ob_mods & 4) {
+            // Try locking Mod5 (AltGr) directly - bypasses keycode issues
+            XkbLockModifiers(dpy, XkbUseCoreKbd, Mod5Mask, Mod5Mask);
+            XFlush(dpy);
+            usleep(10000);
+        }
+        XTestFakeKeyEvent(dpy, kc, True, 0);
+        XFlush(dpy);
+    } else {
+        XTestFakeKeyEvent(dpy, kc, False, 0);
+        // Release AltGr
+        if (ob_mods & 4) {
+            XkbLockModifiers(dpy, XkbUseCoreKbd, Mod5Mask, 0);
+            XFlush(dpy);
+        }
+        // Release Shift
+        if (ob_mods & 1) {
+            KeyCode skc = XKeysymToKeycode(dpy, XK_Shift_L);
+            if (skc) XTestFakeKeyEvent(dpy, skc, False, 0);
+        }
     }
-    XTestFakeKeyEvent(dpy, kc, pressed, 0);
-    if (!pressed) {
-        for (int i = n - 1; i >= 0; i--)
-            XTestFakeKeyEvent(dpy, mods[i], False, 0);
-    }
+    last_mods = ob_mods;
     return 0;
 }
 
@@ -101,10 +110,7 @@ int engine_send_key_ex(Engine *engine, KeySym keysym, bool pressed, int modifier
     KeyCode kc = keysym_to_keycode(engine->display, keysym, &modifiers);
     if (!kc) return -1;
 
-    KeyCode mod_keys[4];
-    int mod_count = modifier_keys_for_mask(engine->display, modifiers, mod_keys, 4, keysym);
-
-    return inject_key_sequence(engine->display, kc, mod_keys, mod_count, pressed);
+    return inject_key_sequence(engine->display, kc, modifiers, pressed);
 }
 
 void engine_flush(Engine *engine) {

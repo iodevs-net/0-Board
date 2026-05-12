@@ -13,59 +13,22 @@ KeyCode keysym_layout_resolve(Display *dpy, KeySym target, int *modifiers) {
     XDisplayKeycodes(dpy, &min_kc, &max_kc);
     if (min_kc <= 0 || max_kc <= min_kc) return 0;
 
-    // Primary: iterate keycodes via XKB (handles all levels correctly)
-    for (int kc = min_kc; kc <= max_kc; kc++) {
-        // Check level 0 (plain key press, no modifier)
-        if (XkbKeycodeToKeysym(dpy, kc, 0, 0) == target) {
-            *modifiers = 0;
-            return kc;
-        }
-    }
-
-    // Level 0 not found. Try other levels (Shift, AltGr, Shift+AltGr).
-    // Use XkbKeysymToModifiers to get the EXACT modifier mask.
-    unsigned int x11_mods = XkbKeysymToModifiers(dpy, target);
-    int needs_shift = (x11_mods & ShiftMask) != 0;
-    int needs_altgr = (x11_mods & Mod5Mask) != 0;
-    int needs_alt   = (x11_mods & Mod1Mask) != 0;
-
-    for (int kc = min_kc; kc <= max_kc; kc++) {
-        // Check level 1 (Shift)
-        if (needs_shift && !needs_altgr && !needs_alt) {
-            if (XkbKeycodeToKeysym(dpy, kc, 0, 1) == target) {
-                *modifiers = 1; // Shift
-                return kc;
-            }
-        }
-        // Check level 2 (AltGr)
-        if (needs_altgr && !needs_shift) {
-            if (XkbKeycodeToKeysym(dpy, kc, 0, 2) == target) {
-                *modifiers = 4; // AltGr
-                return kc;
-            }
-        }
-        // Check level 3 (Shift+AltGr)
-        if (needs_shift && needs_altgr) {
-            if (XkbKeycodeToKeysym(dpy, kc, 0, 3) == target) {
-                *modifiers = 5; // Shift+AltGr
-                return kc;
-            }
-        }
-    }
-
-    // Phase 3: Fallback — try all levels without modifier check
+    // Phase 1: Find the FIRST keycode for this keysym at ANY level.
+    // Return keycode + level-based modifier.
+    // Prefer simpler modifiers (level 0 best, then 1, 2, 3).
     for (int kc = min_kc; kc <= max_kc; kc++) {
         for (int level = 0; level < 4; level++) {
-            KeySym ks = XkbKeycodeToKeysym(dpy, kc, 0, level);
-            if (ks == target) {
-                if (level & 1) *modifiers |= 1;
-                if (level & 2) *modifiers |= 4;
+            if (XkbKeycodeToKeysym(dpy, kc, 0, level) == target) {
+                int mods = 0;
+                if (level & 1) mods |= 1;  // Shift
+                if (level & 2) mods |= 4;  // AltGr
+                *modifiers = mods;
                 return kc;
             }
         }
     }
 
-    // Phase 4: Core X11 fallback
+    // Phase 2: Core X11 fallback
     int per_kc;
     KeySym *map = XGetKeyboardMapping(dpy, min_kc, max_kc - min_kc + 1, &per_kc);
     if (map) {
