@@ -39,13 +39,7 @@ void ui_calculate_layout(UI *ui) {
     ui->current_width = kb_width;
     ui->current_height = kb_height + menu_offset;
 
-    // Refresh memory for key bounds
-    if (ui->key_bounds) free(ui->key_bounds);
-    if (ui->key_metadata) free(ui->key_metadata);
-    
     ui->key_count = layout->num_keys;
-    ui->key_bounds = malloc(sizeof(Rectangle) * ui->key_count);
-    ui->key_metadata = malloc(sizeof(KeyVisualMetadata) * ui->key_count);
 
     // Run the layout engine to compute relative positions
     layout_engine_calculate(layout, ui->current_width, ui->current_height,
@@ -141,6 +135,11 @@ UI* ui_create(UIConfig *config, Keyboard *keyboard,
     
     ui->menu_visible = ui->config.show_menu_bar;
     ui->dirty = true;
+    /* Alocar buffers de geometría una sola vez (MAX_KEYS = 128)   */
+    /* Evita malloc/free en cada resize (hot path del layout).      */
+    ui->key_bounds   = malloc(sizeof(Rectangle) * MAX_KEYS);
+    ui->key_metadata = malloc(sizeof(KeyVisualMetadata) * MAX_KEYS);
+
     drag_init(&ui->drag);
     touchpad_init(&ui->touchpad);
     ui->touchpad.display = x11_window_get_display(ui->window);
@@ -217,14 +216,14 @@ static void ui_update_bg_cache(UI *ui) {
 
 static void ui_render_frame(UI *ui) {
     KeyboardState kb_state = keyboard_get_state(ui->keyboard);
-    bool layer_changed = ((int)kb_state.current_layer != ui->last_rendered_layer) || 
+    bool layer_changed = ((int)kb_state.active_layer != ui->last_rendered_layer) ||
                          (kb_state.caps_lock != ui->last_rendered_caps) ||
-                         (kb_state.fn_active != ui->last_rendered_fn);
+                         (kb_state.fn_state != KBD_MODIFIER_OFF) != ui->last_rendered_fn;
 
     if (ui->bg_dirty || layer_changed || !ui->bg_cache) {
-        ui->last_rendered_layer = (int)kb_state.current_layer;
+        ui->last_rendered_layer = (int)kb_state.active_layer;
         ui->last_rendered_caps = kb_state.caps_lock;
-        ui->last_rendered_fn = kb_state.fn_active;
+        ui->last_rendered_fn = (kb_state.fn_state != KBD_MODIFIER_OFF);
         ui_update_bg_cache(ui);
     }
 

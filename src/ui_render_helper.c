@@ -63,7 +63,7 @@ void ui_render_draw_keyboard(Renderer *renderer, Keyboard *keyboard,
 
         if (draw_dynamic) {
             if (key->flags & KEYFLAG_SHIFT)
-                is_active_modifier = (state.current_layer == KEYBOARD_LAYER_SHIFT);
+                is_active_modifier = (state.active_layer == KEYBOARD_LAYER_SHIFT);
             else if (key->flags & KEYFLAG_CTRL)
                 is_active_modifier = (state.ctrl_state != KBD_MODIFIER_OFF);
             else if (key->flags & KEYFLAG_ALT)
