@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "keysym_util.h"
+#include "keysym_layout.h"
 
 struct Engine {
     Display *display;
@@ -41,22 +42,24 @@ int engine_send_key(Engine *engine, KeySym keysym, bool pressed) {
 }
 
 static KeyCode keysym_to_keycode(Display *dpy, KeySym sym, int *modifiers) {
-    KeyCode kc = XKeysymToKeycode(dpy, sym);
+    int layout_mods = 0;
+    KeyCode kc = keysym_layout_resolve(dpy, sym, &layout_mods);
+    if (kc) {
+        *modifiers |= layout_mods;
+        return kc;
+    }
+    // Fallback for layouts where lookup fails
+    kc = XKeysymToKeycode(dpy, sym);
     if (kc) return kc;
-
-    // Uppercase letter -> lowercase + Shift
     if (sym >= XK_A && sym <= XK_Z) {
         kc = XKeysymToKeycode(dpy, sym - XK_A + XK_a);
         if (kc) { *modifiers |= 1; return kc; }
     }
-
-    // Shifted symbol -> base + Shift
     KeySym base = keysym_get_base(sym);
     if (base) {
         kc = XKeysymToKeycode(dpy, base);
         if (kc) { *modifiers |= 1; return kc; }
     }
-
     return 0;
 }
 
@@ -66,8 +69,13 @@ static int modifier_keys_for_mask(Display *dpy, int modifiers, KeyCode *out, int
         if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Shift_L);
     if ((modifiers & 2) && self != XK_Control_L && self != XK_Control_R)
         if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Control_L);
-    if ((modifiers & 4) && self != XK_Alt_L && self != XK_Alt_R)
-        if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Alt_L);
+    if ((modifiers & 4) && self != XK_Alt_L && self != XK_Alt_R) {
+        KeyCode altgr = XKeysymToKeycode(dpy, XK_ISO_Level3_Shift);
+        if (!altgr) altgr = XKeysymToKeycode(dpy, XK_Mode_switch);
+        if (!altgr) altgr = XKeysymToKeycode(dpy, XK_Alt_R);
+        if (!altgr) altgr = XKeysymToKeycode(dpy, XK_Alt_L);
+        if (n < max) out[n++] = altgr;
+    }
     if ((modifiers & 8) && self != XK_Super_L && self != XK_Super_R)
         if (n < max) out[n++] = XKeysymToKeycode(dpy, XK_Super_L);
     return n;
