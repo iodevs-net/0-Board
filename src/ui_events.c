@@ -107,11 +107,10 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             ui->dirty = true;
             return;
         }
-        // Check L/R click buttons — warp to virtual pos first
+        // Check L/R click buttons — warp + click atomically
         int btn;
         if (touchpad_is_button(tp, wx, wy, &btn)) {
-            touchpad_warp_to_virtual(tp);
-            engine_send_mouse_click(ui->engine, btn);
+            touchpad_click_at_virtual(tp, btn);
             return;
         }
         // Scroll zone — mark touching for motion handler
@@ -154,6 +153,7 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
                 ui->touchpad.root = DefaultRootWindow(ui->touchpad.display);
                 ui->touchpad.width = ui->current_width;
                 ui->touchpad.height = ui->current_height;
+                touchpad_update_virtual_to_real(&ui->touchpad);
             }
             ui->dirty = true;
             break;
@@ -220,8 +220,7 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
                     if (touchpad_is_scroll(&ui->touchpad, event->x, event->y)) {
                         int delta = touchpad_scroll_delta(&ui->touchpad, event->x, event->y);
                         if (delta != 0) {
-                            touchpad_warp_to_virtual(&ui->touchpad);
-                            engine_send_scroll(ui->engine, delta > 0 ? 5 : 4);
+                            touchpad_scroll_at_virtual(&ui->touchpad, delta > 0 ? 5 : 4);
                         }
                     } else {
                         touchpad_motion(&ui->touchpad, event->x, event->y);

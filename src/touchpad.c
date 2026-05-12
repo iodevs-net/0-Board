@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 static unsigned long now_ms(void) {
     struct timespec ts;
@@ -20,18 +21,23 @@ void touchpad_init(Touchpad *tp) {
     tp->scroll_sensitivity = 20;
 }
 
+void touchpad_update_virtual_to_real(Touchpad *tp) {
+    if (!tp->display) return;
+    Window root_ret, child_ret;
+    int root_x, root_y, win_x, win_y;
+    unsigned int mask;
+    if (XQueryPointer(tp->display, tp->root, &root_ret, &child_ret,
+                  &root_x, &root_y, &win_x, &win_y, &mask)) {
+        tp->virt_x = root_x;
+        tp->virt_y = root_y;
+    }
+}
+
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
     tp->touching = true;
 
     if (tp->virt_x == 0 && tp->virt_y == 0 && tp->display) {
-        /* First touch: read real cursor position as starting point */
-        Window root_ret, child_ret;
-        int root_x, root_y, win_x, win_y;
-        unsigned int mask;
-        XQueryPointer(tp->display, tp->root, &root_ret, &child_ret,
-                      &root_x, &root_y, &win_x, &win_y, &mask);
-        tp->virt_x = root_x;
-        tp->virt_y = root_y;
+        touchpad_update_virtual_to_real(tp);
     }
     tp->prev_x = touch_x;
     tp->prev_y = touch_y;
@@ -69,18 +75,51 @@ void touchpad_warp_to_virtual(Touchpad *tp) {
     XFlush(tp->display);
 }
 
+void touchpad_click_at_virtual(Touchpad *tp, int button) {
+    if (!tp->display) return;
+    /* Warp to virtual position */
+    XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
+                 tp->virt_x, tp->virt_y);
+    XFlush(tp->display);
+    
+    /* We must have a small delay between Press and Release, otherwise
+     * many GUI toolkits will ignore the 0-duration click. */
+    XTestFakeButtonEvent(tp->display, button, True, 0);
+    XFlush(tp->display);
+    usleep(20000); /* 20ms */
+    
+    /* Warp again just in case the touchscreen moved the pointer back during the sleep */
+    XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
+                 tp->virt_x, tp->virt_y);
+    XTestFakeButtonEvent(tp->display, button, False, 0);
+    XFlush(tp->display);
+}
+
+void touchpad_scroll_at_virtual(Touchpad *tp, int button) {
+    if (!tp->display) return;
+    /* Warp + scroll as atomic burst */
+    XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
+                 tp->virt_x, tp->virt_y);
+    XTestFakeButtonEvent(tp->display, button, True, 0);
+    XTestFakeButtonEvent(tp->display, button, False, 0);
+    XFlush(tp->display);
+}
+
 int touchpad_up(Touchpad *tp, int touch_x, int touch_y, int *click_at_x, int *click_at_y) {
     (void)touch_x; (void)touch_y; (void)click_at_x; (void)click_at_y;
     if (!tp->touching) return 0;
     tp->touching = false;
 
-    /* Always warp pointer to virtual position on finger lift */
-    touchpad_warp_to_virtual(tp);
-
     unsigned long elapsed = now_ms() - tp->touch_start_time;
-    if (tp->moved) return 0;  /* drag — no click */
-    if (elapsed >= (unsigned long)tp->long_press_ms) return 3;  /* long press = right click */
-    return 1;  /* tap = left click */
+    if (tp->moved) {
+        /* Drag completed — warp to final virtual position */
+        touchpad_warp_to_virtual(tp);
+        return 0;
+    }
+    /* Tap or long press — atomic warp+click */
+    int button = (elapsed >= (unsigned long)tp->long_press_ms) ? 3 : 1;
+    touchpad_click_at_virtual(tp, button);
+    return 0;  /* click already sent */
 }
 
 bool touchpad_is_scroll(Touchpad *tp, int touch_x, int touch_y) {

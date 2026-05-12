@@ -37,7 +37,10 @@ typedef struct {
 void touchpad_init(Touchpad *tp);
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y);
 bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y);
+void touchpad_update_virtual_to_real(Touchpad *tp);
 void touchpad_warp_to_virtual(Touchpad *tp);
+void touchpad_click_at_virtual(Touchpad *tp, int button);
+void touchpad_scroll_at_virtual(Touchpad *tp, int button);
 int touchpad_up(Touchpad *tp, int touch_x, int touch_y, int *click_at_x, int *click_at_y);
 bool touchpad_is_scroll(Touchpad *tp, int touch_x, int touch_y);
 int touchpad_scroll_delta(Touchpad *tp, int touch_x, int touch_y);
