@@ -98,18 +98,19 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (ui->touchpad_mode && handle_menu_click(ui, wx, wy)) return;
 
     if (ui->touchpad_mode) {
-        /* Exit touchpad: red button or ⦿ key */
+        /* Exit touchpad: red button */
         Touchpad *tp = &ui->touchpad;
         if (wx >= tp->exit_x && wx <= tp->exit_x + tp->exit_w &&
             wy >= tp->exit_y && wy <= tp->exit_y + tp->exit_h) {
-            touchpad_release_touchscreen(tp);
+            touchpad_warp_to_virtual(tp);
             ui->touchpad_mode = false;
             ui->dirty = true;
             return;
         }
-        // Check L/R click buttons
+        // Check L/R click buttons — warp to virtual pos first
         int btn;
         if (touchpad_is_button(tp, wx, wy, &btn)) {
+            touchpad_warp_to_virtual(tp);
             engine_send_mouse_click(ui->engine, btn);
             return;
         }
@@ -153,9 +154,6 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
                 ui->touchpad.root = DefaultRootWindow(ui->touchpad.display);
                 ui->touchpad.width = ui->current_width;
                 ui->touchpad.height = ui->current_height;
-                touchpad_grab_touchscreen(&ui->touchpad);
-            } else {
-                touchpad_release_touchscreen(&ui->touchpad);
             }
             ui->dirty = true;
             break;
@@ -221,8 +219,10 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
                     // Check if in scroll zone
                     if (touchpad_is_scroll(&ui->touchpad, event->x, event->y)) {
                         int delta = touchpad_scroll_delta(&ui->touchpad, event->x, event->y);
-                        if (delta != 0)
+                        if (delta != 0) {
+                            touchpad_warp_to_virtual(&ui->touchpad);
                             engine_send_scroll(ui->engine, delta > 0 ? 5 : 4);
+                        }
                     } else {
                         touchpad_motion(&ui->touchpad, event->x, event->y);
                     }
