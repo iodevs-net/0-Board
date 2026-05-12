@@ -3,7 +3,6 @@
 #include "touchpad.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/XTest.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
@@ -23,6 +22,14 @@ void touchpad_init(Touchpad *tp) {
 
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
     tp->touching = true;
+    // Undo the absolute touch jump: warp pointer back to saved position
+    if (tp->display && (tp->start_x || tp->start_y)) {
+        XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
+                     tp->start_x, tp->start_y);
+        XFlush(tp->display);
+    }
+    tp->virt_x = tp->start_x;
+    tp->virt_y = tp->start_y;
     tp->prev_x = touch_x;
     tp->prev_y = touch_y;
     tp->touch_start_x = touch_x;
@@ -44,18 +51,12 @@ bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y) {
 
     if (dx == 0 && dy == 0) return false;
 
-    int move_x = dx * tp->acceleration;
-    int move_y = dy * tp->acceleration;
-
-    // Get current pointer position for RELATIVE movement
-    Window root_ret, child_ret;
-    int root_x, root_y, win_x, win_y;
-    unsigned int mask;
-    XQueryPointer(tp->display, tp->root, &root_ret, &child_ret,
-                  &root_x, &root_y, &win_x, &win_y, &mask);
+    // Update virtual pointer position
+    tp->virt_x += dx * tp->acceleration;
+    tp->virt_y += dy * tp->acceleration;
 
     XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
-                 root_x + move_x, root_y + move_y);
+                 tp->virt_x, tp->virt_y);
     XFlush(tp->display);
 
     tp->prev_x = touch_x;
@@ -66,24 +67,16 @@ bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y) {
 int touchpad_up(Touchpad *tp, int touch_x, int touch_y, int *click_at_x, int *click_at_y) {
     if (!tp->touching) return 0;
     tp->touching = false;
-
     unsigned long elapsed = now_ms() - tp->touch_start_time;
-
-    // If moved significantly, no click
     if (tp->moved) return 0;
-
-    // Long press = right click
-    if (elapsed >= (unsigned long)tp->long_press_ms)
-        return 3;
-
-    // Short tap = left click
+    if (elapsed >= (unsigned long)tp->long_press_ms) return 3;
     return 1;
 }
 
 bool touchpad_is_scroll(Touchpad *tp, int touch_x, int touch_y) {
     if (touch_x < tp->scroll_bar_x || touch_y < 0) return false;
-    int bottom_buttons_y = tp->height - tp->btn_h - tp->scroll_bar_x;
-    return touch_y < bottom_buttons_y;
+    int bottom = tp->height - tp->btn_h - tp->scroll_bar_x;
+    return touch_y < bottom;
 }
 
 int touchpad_scroll_delta(Touchpad *tp, int touch_x, int touch_y) {
@@ -97,12 +90,10 @@ int touchpad_scroll_delta(Touchpad *tp, int touch_x, int touch_y) {
 bool touchpad_is_button(Touchpad *tp, int touch_x, int touch_y, int *button) {
     if (touch_y < tp->btn_y || touch_y > tp->btn_y + tp->btn_h) return false;
     if (touch_x >= tp->btn_left_x && touch_x < tp->btn_left_x + tp->btn_w) {
-        *button = 1;
-        return true;
+        *button = 1; return true;
     }
     if (touch_x >= tp->btn_right_x && touch_x < tp->btn_right_x + tp->btn_w) {
-        *button = 3;
-        return true;
+        *button = 3; return true;
     }
     return false;
 }
