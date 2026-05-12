@@ -98,6 +98,19 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (ui->touchpad_mode && handle_menu_click(ui, wx, wy)) return;
 
     if (ui->touchpad_mode) {
+        /* Permitir salir del modo touchpad tocando la tecla ⦿ */
+        for (int i = 0; i < ui->key_count; i++) {
+            Rectangle *kb = &ui->key_bounds[i];
+            if (wx >= kb->x && wx <= kb->x + kb->width &&
+                wy >= kb->y && wy <= kb->y + kb->height) {
+                KeyDef *k = &keyboard_get_layout(ui->keyboard)->keys[i];
+                if (k->flags & KEYFLAG_TOUCHPAD) {
+                    ui->touchpad_mode = false;
+                    ui->dirty = true;
+                    return;
+                }
+            }
+        }
         // Check buttons first
         int btn;
         if (touchpad_is_button(&ui->touchpad, wx, wy, &btn)) {
@@ -215,7 +228,11 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
             break;
 
         case WINDOW_EVENT_MOTION:
-            ui_handle_motion(ui, event->root_x, event->root_y);
+            if (ui->touchpad_mode && ui->touchpad.touching) {
+                touchpad_motion(&ui->touchpad, event->x, event->y);
+            } else {
+                ui_handle_motion(ui, event->root_x, event->root_y);
+            }
             break;
 
         case WINDOW_EVENT_BUTTON_PRESS:
