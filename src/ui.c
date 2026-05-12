@@ -260,8 +260,14 @@ static void ui_render_frame(UI *ui) {
     unsigned int mask__;
     XQueryPointer(dpy__, RootWindow(dpy__, DefaultScreen(dpy__)),
                   &root__, &child__, &rx__, &ry__, &wx__, &wy__, &mask__);
-    ui->saved_pointer_x = rx__;
-    ui->saved_pointer_y = ry__;
+    // Only save when pointer is OUTSIDE the keyboard window
+    int kx__, ky__;
+    x11_window_get_position(ui->window, &kx__, &ky__);
+    if (rx__ < kx__ || rx__ > kx__ + ui->current_width ||
+        ry__ < ky__ || ry__ > ky__ + ui->current_height) {
+        ui->saved_pointer_x = rx__;
+        ui->saved_pointer_y = ry__;
+    }
 }
 
 void ui_run(UI *ui) {
