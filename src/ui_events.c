@@ -114,7 +114,16 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             break;
         }
         if (sym == XK_Super_L) { keyboard_press_key(ui->keyboard, i); handle_voice_key(ui); break; }
-        if (sym == XK_Menu) { keyboard_press_key(ui->keyboard, i); engine_send_mouse_click(ui->engine, 3); break; }
+        if (sym == XK_Menu) {
+            keyboard_press_key(ui->keyboard, i);
+            x11_window_hide(ui->window);
+            XFlush(x11_window_get_display(ui->window));
+            usleep(50000);
+            engine_send_mouse_click(ui->engine, 3);
+            usleep(50000);
+            x11_window_show(ui->window);
+            break;
+        }
 
         keyboard_press_key(ui->keyboard, i);
         KeyDef *key = &keyboard_get_layout(ui->keyboard)->keys[i];

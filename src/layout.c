@@ -67,8 +67,8 @@ static KeyDef default_keys[] = {
     {XK_comma,     XK_less,       0, 0, NULL, ",",  "<",  false, 20, 0},
     {XK_period,    XK_greater,    0, 0, NULL, ".",  ">",  false, 20, 0},
     {XK_slash,     XK_question,   0, 0, NULL, "/",  "?",  false, 20, 0},
-    {XK_VoidSymbol, 0,             0, 0, NULL, "↑↓",  NULL, false, 25, 0},
     {XK_Menu,       0,             0, 0, NULL, "⦿",  NULL, false, 20, 0},
+    {XK_VoidSymbol, 0,             0, 0, NULL, "↑↓",  NULL, false, 25, 0},
 
     // Row 5: Bottom — fn, ctrl, alt, mic, space, size, alt, arrows (Total 300)
     {0,            0,             0, 0, NULL, "fn",   NULL, true,  20, 0},
