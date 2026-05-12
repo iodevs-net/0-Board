@@ -125,7 +125,7 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             XFlush(dpy_mc);
             usleep(30000);
             engine_send_mouse_click(ui->engine, 3);
-            usleep(50000);
+            usleep(300000);
             x11_window_show(ui->window);
             break;
         }
