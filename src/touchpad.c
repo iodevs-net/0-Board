@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdlib.h>
 
 static unsigned long now_ms(void) {
     struct timespec ts;
