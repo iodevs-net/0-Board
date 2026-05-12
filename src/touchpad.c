@@ -22,11 +22,16 @@ void touchpad_init(Touchpad *tp) {
 
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
     tp->touching = true;
-    // Undo the absolute touch jump: warp pointer back to saved position
-    if (tp->display && (tp->start_x || tp->start_y)) {
-        XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
-                     tp->start_x, tp->start_y);
-        XFlush(tp->display);
+
+    /* Leer posicion real del cursor para arrancar desde ahi */
+    Window root_ret, child_ret;
+    int root_x, root_y, win_x, win_y;
+    unsigned int mask;
+    if (tp->display) {
+        XQueryPointer(tp->display, tp->root, &root_ret, &child_ret,
+                      &root_x, &root_y, &win_x, &win_y, &mask);
+        tp->start_x = root_x;
+        tp->start_y = root_y;
     }
     tp->virt_x = tp->start_x;
     tp->virt_y = tp->start_y;
