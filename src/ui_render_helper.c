@@ -221,6 +221,20 @@ void ui_render_touchpad(Renderer *renderer, Touchpad *tp, Rectangle bounds, Colo
     renderer_draw_rectangle(renderer, bounds, scheme.background, 14.0);
 
     int pad = 10;
+
+    // Exit button (top-right corner)
+    tp->exit_w = 50;
+    tp->exit_h = 28;
+    tp->exit_x = bounds.x + bounds.width - tp->exit_w - pad;
+    tp->exit_y = bounds.y + pad;
+    Color exit_bg = {1.0, 0.37, 0.34, 0.8}; // semitransparent red
+    renderer_draw_rectangle(renderer,
+        (Rectangle){tp->exit_x, tp->exit_y, tp->exit_w, tp->exit_h},
+        exit_bg, tp->exit_h / 2);
+    FontSpec exit_font = {"Inter", 13, true, false};
+    renderer_draw_text(renderer, "\u2B05",
+        (Rectangle){tp->exit_x, tp->exit_y, tp->exit_w, tp->exit_h},
+        exit_font, (Color){1,1,1,1}, ALIGN_CENTER, VALIGN_CENTER);
     int bar_w = 12;
     int bar_h = bounds.height - tp->btn_h - pad*3;
 

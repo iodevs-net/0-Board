@@ -98,7 +98,14 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     if (ui->touchpad_mode && handle_menu_click(ui, wx, wy)) return;
 
     if (ui->touchpad_mode) {
-        /* Permitir salir del modo touchpad tocando la tecla ⦿ */
+        /* Salir del touchpad: boton rojo en esquina o tecla ⦿ */
+        Touchpad *tp = &ui->touchpad;
+        if (wx >= tp->exit_x && wx <= tp->exit_x + tp->exit_w &&
+            wy >= tp->exit_y && wy <= tp->exit_y + tp->exit_h) {
+            ui->touchpad_mode = false;
+            ui->dirty = true;
+            return;
+        }
         for (int i = 0; i < ui->key_count; i++) {
             Rectangle *kb = &ui->key_bounds[i];
             if (wx >= kb->x && wx <= kb->x + kb->width &&

@@ -28,6 +28,7 @@ typedef struct {
     int btn_y;                 // Y position of buttons
     int btn_left_x, btn_left_y, btn_w, btn_h;   // Left click button coords
     int btn_right_x, btn_right_y;                // Right click button
+    int exit_x, exit_y, exit_w, exit_h;
 
     // Display (set by user)
     Display *display;

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=0-Board
+Name[es]=0-Board
+Comment=Virtual keyboard for Linux tablets
+Comment[es]=Teclado virtual para tablets Linux
+Exec=0-board
+Icon=input-keyboard
+Categories=Utility;Accessibility;
+Terminal=false
+StartupNotify=false
+Keywords=keyboard;virtual;onscreen;tablet;touch
