@@ -27,21 +27,27 @@ void touchpad_init(Touchpad *tp) {
  * We look for devices with "Touchscreen" or "touch" in the name.
  * Returns device ID or -1 if not found. */
 static int find_touchscreen_id(void) {
-    /* Parse xinput list output: lines like "⎜   ↳ SYNA7508:00 06CB:1613    id=12  [slave  pointer  (2)]" */
+    /* Parse xinput list: find slave pointer that is NOT Virtual/XTEST/Stylus/eraser.
+     * On the HP x2 210 G1 the touchscreen is "SYNA7508:00 06CB:1613" (no "touch" in name). */
     FILE *fp = popen("xinput list 2>/dev/null", "r");
     if (!fp) return -1;
     char line[512];
     int found_id = -1;
     while (fgets(line, sizeof(line), fp)) {
-        /* Case-insensitive search for "touch" but exclude "touchpad" */
+        /* Must be a slave pointer */
+        if (!strstr(line, "slave  pointer")) continue;
+        /* Skip known non-touchscreen devices */
         char lower[512];
         int i;
         for (i = 0; line[i] && i < 511; i++)
             lower[i] = (line[i] >= 'A' && line[i] <= 'Z') ? line[i] + 32 : line[i];
         lower[i] = '\0';
-        if (!strstr(lower, "touch") || strstr(lower, "touchpad"))
+        if (strstr(lower, "virtual") || strstr(lower, "xtest") ||
+            strstr(lower, "stylus") || strstr(lower, "eraser") ||
+            strstr(lower, "touchpad") || strstr(lower, "mouse") ||
+            strstr(lower, "trackpoint"))
             continue;
-        /* Extract id=N */
+        /* This is likely the touchscreen — extract id=N */
         char *id_str = strstr(line, "id=");
         if (id_str) {
             found_id = atoi(id_str + 3);
