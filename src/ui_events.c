@@ -235,8 +235,14 @@ void ui_event_callback(X11Window *window, WindowEvent *event, void *user_data) {
             break;
 
         case WINDOW_EVENT_MOTION:
-            if (ui->touchpad_mode && ui->touchpad.touching) {
-                touchpad_motion(&ui->touchpad, event->x, event->y);
+            if (ui->touchpad_mode) {
+                if (ui->touchpad.warp_skip > 0) {
+                    ui->touchpad.warp_skip--;  // ignorar evento generado por XWarpPointer
+                    break;
+                }
+                if (ui->touchpad.touching) {
+                    touchpad_motion(&ui->touchpad, event->x, event->y);
+                }
             } else {
                 ui_handle_motion(ui, event->root_x, event->root_y);
             }

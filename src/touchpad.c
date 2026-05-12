@@ -61,6 +61,7 @@ bool touchpad_motion(Touchpad *tp, int touch_x, int touch_y) {
     tp->virt_x += dx * tp->acceleration;
     tp->virt_y += dy * tp->acceleration;
 
+    tp->warp_skip = 2;  // ignorar motion events que genere XWarpPointer
     XWarpPointer(tp->display, None, tp->root, 0, 0, 0, 0,
                  tp->virt_x, tp->virt_y);
     XFlush(tp->display);
