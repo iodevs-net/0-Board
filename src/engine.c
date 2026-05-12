@@ -98,6 +98,7 @@ static int inject_key_sequence(Display *dpy, KeyCode kc, int ob_mods, Bool press
             KeyCode skc = XKeysymToKeycode(dpy, XK_Shift_L);
             if (skc) XTestFakeKeyEvent(dpy, skc, False, 0);
         }
+        XFlush(dpy);  // ENVIAR release al servidor X
     }
     last_mods = ob_mods;
     return 0;
