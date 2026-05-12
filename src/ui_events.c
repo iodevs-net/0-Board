@@ -94,6 +94,27 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
     }
     if (button != 1) return;
     if (handle_menu_click(ui, wx, wy)) return;
+    // Touchpad mode handling
+    if (ui->touchpad_mode && handle_menu_click(ui, wx, wy)) return;
+
+    if (ui->touchpad_mode) {
+        // Check buttons first
+        int btn;
+        if (touchpad_is_button(&ui->touchpad, wx, wy, &btn)) {
+            if (btn == 1) engine_send_mouse_click(ui->engine, 1);
+            else engine_send_mouse_click(ui->engine, btn);
+            return;
+        }
+        if (touchpad_is_scroll(&ui->touchpad, wx, wy)) {
+            // handled by motion
+            keyboard_press_key(ui->keyboard, 0); // visual feedback
+            return;
+        }
+        // Regular touchpad area
+        touchpad_down(&ui->touchpad, wx, wy);
+        keyboard_press_key(ui->keyboard, 0); // visual feedback
+        return;
+    }
 
     for (int i = 0; i < ui->key_count; i++) {
         Rectangle *kb = &ui->key_bounds[i];
@@ -114,19 +135,28 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             break;
         }
         if (sym == XK_Super_L) { keyboard_press_key(ui->keyboard, i); handle_voice_key(ui); break; }
-        if (sym == XK_Menu) {
+        // ⦿ toggles touchpad mode
+        if (label && strcmp(label, "⦿") == 0) {
             keyboard_press_key(ui->keyboard, i);
-            x11_window_hide(ui->window);
-            XFlush(x11_window_get_display(ui->window));
-            usleep(50000);
-            Display *dpy_mc = x11_window_get_display(ui->window);
-            XWarpPointer(dpy_mc, None, RootWindow(dpy_mc, DefaultScreen(dpy_mc)),
-                         0, 0, 0, 0, ui->saved_pointer_x, ui->saved_pointer_y);
-            XFlush(dpy_mc);
-            usleep(30000);
-            engine_send_mouse_click(ui->engine, 3);
-            usleep(300000);
-            x11_window_show(ui->window);
+            ui->touchpad_mode = !ui->touchpad_mode;
+            if (ui->touchpad_mode) {
+                touchpad_init(&ui->touchpad);
+                ui->touchpad.display = x11_window_get_display(ui->window);
+                ui->touchpad.root = DefaultRootWindow(ui->touchpad.display);
+                // Get screen dimensions for touchpad area
+                ui->touchpad.width = ui->current_width;
+                ui->touchpad.height = ui->current_height;
+                int pad = ui->touchpad.width * 0.012;
+                int btn_h = 40;
+                int btn_w = ui->touchpad.width / 2 - pad * 2;
+                ui->touchpad.btn_h = btn_h;
+                ui->touchpad.btn_w = btn_w;
+                ui->touchpad.btn_y = ui->touchpad.height - btn_h - pad;
+                ui->touchpad.btn_left_x = pad;
+                ui->touchpad.btn_right_x = ui->touchpad.width / 2 + pad;
+                ui->touchpad.scroll_bar_x = ui->touchpad.width - 15;
+            }
+            ui->dirty = true;
             break;
         }
 
@@ -143,7 +173,15 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
 }
 
 void ui_handle_button_release(UI *ui, int x, int y, int button) {
-    if (!ui || button != 1) return;
+    if (ui->touchpad_mode) {
+        if (ui->touchpad.touching) {
+            int cx, cy;
+            int btn = touchpad_up(&ui->touchpad, 0, 0, &cx, &cy);
+            if (btn) engine_send_mouse_click(ui->engine, btn);
+        }
+        return;
+    }
+    if (button != 1) return;
     (void)x; (void)y;
 
     KeyboardState state = keyboard_get_state(ui->keyboard);

@@ -11,6 +11,7 @@
 #include "engine.h"
 #include "colors.h"
 #include "ui_drag.h"
+#include "touchpad.h"
 
 // Internal UI state shared across modules
 struct UI {
@@ -55,6 +56,10 @@ struct UI {
     // Interaction state
     DragState drag;
     Rectangle menu_btn_bounds[4]; // 0: minus, 1: plus, 2: theme, 3: close
+    
+    // Touchpad mode
+    bool touchpad_mode;
+    Touchpad touchpad;
 };
 
 // Internal helpers

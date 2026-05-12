@@ -3,6 +3,8 @@
 #ifndef UI_RENDER_HELPER_H
 #define UI_RENDER_HELPER_H
 
+#include "touchpad.h"
+
 #include "renderer.h"
 #include "keyboard.h"
 #include "colors.h"
@@ -27,4 +29,6 @@ void ui_render_draw_menu_bar(Renderer *renderer, UI *ui,
 void ui_render_draw_drag_handle(Renderer *renderer, int win_width,
                                ColorScheme scheme, double opacity);
 
+// Draw the touchpad surface
+void ui_render_touchpad(Renderer *renderer, Touchpad *tp, Rectangle bounds, ColorScheme scheme);
 #endif // UI_RENDER_HELPER_H

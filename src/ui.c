@@ -142,6 +142,9 @@ UI* ui_create(UIConfig *config, Keyboard *keyboard,
     ui->menu_visible = ui->config.show_menu_bar;
     ui->dirty = true;
     drag_init(&ui->drag);
+    touchpad_init(&ui->touchpad);
+    ui->touchpad.display = x11_window_get_display(ui->window);
+    ui->touchpad.root = DefaultRootWindow(ui->touchpad.display);
 
     ui_calculate_layout(ui);
 
@@ -152,6 +155,8 @@ UI* ui_create(UIConfig *config, Keyboard *keyboard,
     int pos_x = (screen_w - ui->current_width) / 2;
     int pos_y = screen_h - ui->current_height;
     x11_window_move(ui->window, pos_x, pos_y);
+    ui->saved_pointer_x = screen_w / 2;
+    ui->saved_pointer_y = screen_h / 2;
 
     x11_window_set_event_callback(ui->window, ui_event_callback, ui);
     x11_window_show(ui->window);
@@ -225,6 +230,14 @@ static void ui_render_frame(UI *ui) {
 
     renderer_begin_frame(ui->renderer);
     renderer_clear(ui->renderer, (Color){0,0,0,CLEAR_ALPHA});
+    // Touchpad mode: render touchpad instead of keyboard
+    if (ui->touchpad_mode) {
+        Rectangle full = {0, 0, ui->current_width, ui->current_height};
+        ui_render_touchpad(ui->renderer, &ui->touchpad, full, ui->cached_scheme);
+        renderer_present_to_window(ui->renderer);
+        ui->dirty = false;
+        return;  // Skip keyboard rendering entirely
+    }
 
     // 1. Draw cached background
     renderer_draw_surface(ui->renderer, ui->bg_cache, 0, 0, ui->opacity);

@@ -216,3 +216,42 @@ void ui_render_draw_drag_handle(Renderer *renderer, int win_width,
     (void)renderer; (void)win_width; (void)scheme; (void)opacity;
     // Drag handle removed as per user request for a cleaner look
 }
+void ui_render_touchpad(Renderer *renderer, Touchpad *tp, Rectangle bounds, ColorScheme scheme) {
+    // Draw dark background
+    renderer_draw_rectangle(renderer, bounds, scheme.background, 14.0);
+
+    int pad = 10;
+    int bar_w = 12;
+    int bar_h = bounds.height - tp->btn_h - pad*3;
+
+    // Scroll bar area (right edge)
+    Rectangle scroll = {bounds.x + bounds.width - bar_w - pad, bounds.y + pad, bar_w, bar_h};
+    Color scroll_color = scheme.key_modifier;
+    scroll_color.alpha *= 0.5;
+    renderer_draw_rectangle(renderer, scroll, scroll_color, 6.0);
+
+    // Scroll bar indicator (pill in center)
+    Color pill_color = scheme.text_secondary;
+    pill_color.alpha *= 0.3;
+    Rectangle pill = {scroll.x + 2, scroll.y + bar_h/3, bar_w - 4, bar_h/3};
+    renderer_draw_rectangle(renderer, pill, pill_color, 3.0);
+
+    // Buttons at bottom
+    int btn_h = tp->btn_h;
+    int btn_y = bounds.y + bounds.height - btn_h - pad;
+    int btn_w = (bounds.width - pad*3) / 2;
+    Color btn_color = scheme.key_modifier;
+
+    // Left button
+    Rectangle left_btn = {bounds.x + pad, btn_y, btn_w, btn_h};
+    renderer_draw_rectangle(renderer, left_btn, btn_color, 8.0);
+
+    // Right button
+    Rectangle right_btn = {bounds.x + pad*2 + btn_w, btn_y, btn_w, btn_h};
+    renderer_draw_rectangle(renderer, right_btn, btn_color, 8.0);
+
+    // Button labels
+    FontSpec font = {"Inter", 14, false, false};
+    renderer_draw_text(renderer, "\u2190", left_btn, font, scheme.text_primary, ALIGN_CENTER, VALIGN_CENTER);
+    renderer_draw_text(renderer, "\u2192", right_btn, font, scheme.text_primary, ALIGN_CENTER, VALIGN_CENTER);
+}

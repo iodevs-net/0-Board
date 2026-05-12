@@ -15,6 +15,7 @@
 #define KEYFLAG_ALT      16
 #define KEYFLAG_META     32
 #define KEYFLAG_FN       64
+#define KEYFLAG_TOUCHPAD 128
 
 typedef struct {
     KeySym normal;
