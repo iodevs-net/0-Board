@@ -15,6 +15,7 @@ typedef struct {
     int touch_start_x, touch_start_y;
     unsigned long touch_start_time;  // ms for long-press detection
     bool moved;              // Did finger move significantly since touch down
+    int pending_button;      // Which physical UI button is being pressed (0, 1, 3)
 
     // Config
     int acceleration;       // Pointer speed multiplier (default 2)

@@ -107,10 +107,10 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
             ui->dirty = true;
             return;
         }
-        // Check L/R click buttons — warp + click atomically
+        // Check L/R click buttons
         int btn;
         if (touchpad_is_button(tp, wx, wy, &btn)) {
-            touchpad_click_at_virtual(tp, btn);
+            tp->pending_button = btn;
             return;
         }
         // Scroll zone — mark touching for motion handler
@@ -173,6 +173,11 @@ void ui_handle_button_press(UI *ui, int wx, int wy, int rx, int ry, int button) 
 
 void ui_handle_button_release(UI *ui, int x, int y, int button) {
     if (ui->touchpad_mode) {
+        if (ui->touchpad.pending_button) {
+            touchpad_click_at_virtual(&ui->touchpad, ui->touchpad.pending_button);
+            ui->touchpad.pending_button = 0;
+            return;
+        }
         if (ui->touchpad.touching) {
             int cx, cy;
             int btn = touchpad_up(&ui->touchpad, 0, 0, &cx, &cy);

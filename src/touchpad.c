@@ -36,9 +36,6 @@ void touchpad_update_virtual_to_real(Touchpad *tp) {
 void touchpad_down(Touchpad *tp, int touch_x, int touch_y) {
     tp->touching = true;
 
-    if (tp->virt_x == 0 && tp->virt_y == 0 && tp->display) {
-        touchpad_update_virtual_to_real(tp);
-    }
     tp->prev_x = touch_x;
     tp->prev_y = touch_y;
     tp->touch_start_x = touch_x;

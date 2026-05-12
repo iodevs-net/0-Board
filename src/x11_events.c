@@ -102,7 +102,7 @@ bool x11_window_process_events(X11Window *w) {
     if (!w || !w->display || w->fatal_error) return false;
     XEvent xev;
     bool had = false;
-    int pending = XPending(w->display);
+    int pending = XEventsQueued(w->display, QueuedAfterReading);
     // Limit per-frame events to prevent starvation on X11 flood
     int max_events = 64;
     while (pending > 0 && max_events > 0) {
@@ -117,6 +117,11 @@ bool x11_window_process_events(X11Window *w) {
 
 bool x11_window_wait_event(X11Window *w, int timeout_ms) {
     if (!w || !w->display || w->fatal_error) return false;
+
+    // Flush any pending requests and check if we already have events
+    if (XEventsQueued(w->display, QueuedAfterFlush) > 0) {
+        return x11_window_process_events(w);
+    }
 
     if (timeout_ms > 0) {
         fd_set fds; FD_ZERO(&fds);
@@ -140,11 +145,6 @@ bool x11_window_wait_event(X11Window *w, int timeout_ms) {
     FD_SET(fd, &fds);
     struct timeval tv = {0, 500000}; // 500ms max
     int ret = select(fd + 1, &fds, NULL, NULL, &tv);
-    if (ret > 0) {
-        XEvent xev;
-        XNextEvent(w->display, &xev);
-        process_xevent(w, &xev);
-        return true;
-    }
+    if (ret > 0) return x11_window_process_events(w);
     return false;
 }

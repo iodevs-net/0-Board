@@ -6,6 +6,14 @@
 #include "ui_render_helper.h"
 #include "layout_engine.h"
 #include "x11_cairo_bridge.h"
+#include <sys/wait.h>
+#include <time.h>
+
+static unsigned long now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -322,13 +330,44 @@ void ui_run_with_shutdown(UI *ui, volatile sig_atomic_t *shutdown_flag) {
             x11_window_process_events(ui->window);
             needs_render = true;
         } else {
-            // Nothing pending — wait up to 500ms (allows signal checks)
-            bool had_event = x11_window_wait_event(ui->window, 500);
+            // Nothing pending — wait up to 50ms (allows signal checks & pointer tracking)
+            bool had_event = x11_window_wait_event(ui->window, 50);
             if (had_event) {
                 x11_window_process_events(ui->window);
             }
             
-            // Check recording state changes (Polling every 500ms max)
+            if (ui->touchpad_mode && !ui->touchpad.touching) {
+                // Sync pointer position periodically, even if there are events,
+                // because noisy sensors could starve the idle loop.
+                static unsigned long last_sync = 0;
+                unsigned long now = now_ms();
+                if (now - last_sync > 50) {
+                    last_sync = now;
+                    
+                    int wx, wy;
+                    x11_window_get_position(ui->window, &wx, &wy);
+                    
+                    // Do not sync if the pointer is INSIDE the 0-board window!
+                    // This prevents a race condition: when the user touches the touchpad, 
+                    // the system pointer instantly jumps to the touchpad. If we sync right then 
+                    // (before ButtonPress is processed), we'd overwrite virt_x with the touchpad's position,
+                    // destroying the relative tracking.
+                    Window root_ret, child_ret;
+                    int root_x, root_y, win_x, win_y;
+                    unsigned int mask;
+                    if (XQueryPointer(ui->touchpad.display, ui->touchpad.root, &root_ret, &child_ret,
+                                  &root_x, &root_y, &win_x, &win_y, &mask)) {
+                        bool inside = (root_x >= wx && root_x < wx + ui->current_width &&
+                                       root_y >= wy && root_y < wy + ui->current_height);
+                        if (!inside) {
+                            ui->touchpad.virt_x = root_x;
+                            ui->touchpad.virt_y = root_y;
+                        }
+                    }
+                }
+            }
+            
+            // Check recording state changes (Polling every 500ms max, we do it every 50ms now)
             static bool last_rec_state = false;
             bool current_rec_state = (access("/tmp/0-voice-recording", F_OK) == 0);
             if (current_rec_state != last_rec_state) {
