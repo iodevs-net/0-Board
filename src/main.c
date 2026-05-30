@@ -16,6 +16,10 @@
 #include <string.h>
 #include <signal.h>
 
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
 static volatile sig_atomic_t g_shutdown = 0;
 volatile sig_atomic_t g_toggle_visibility = 0;
 
@@ -32,7 +36,49 @@ static void error_exit(const char *message) {
     exit(1);
 }
 
+static int check_single_instance_or_toggle() {
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return 0; // fallback if socket fails
+
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    addr.sun_path[0] = '\0';
+    strncpy(addr.sun_path + 1, "0board-single-instance-lock", sizeof(addr.sun_path) - 2);
+
+    if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        close(fd);
+        // Bind failed -> another instance is running.
+        // Try to read its PID and send SIGUSR1 to toggle visibility.
+        FILE *f = fopen("/tmp/0-board.pid", "r");
+        if (f) {
+            pid_t pid = 0;
+            if (fscanf(f, "%d", &pid) == 1 && pid > 0) {
+                kill(pid, SIGUSR1);
+            }
+            fclose(f);
+        }
+        return -1; // Indicate another instance handled it
+    }
+
+    // Bind succeeded -> we are the first instance.
+    // Write our PID to /tmp/0-board.pid.
+    FILE *f = fopen("/tmp/0-board.pid", "w");
+    if (f) {
+        fprintf(f, "%d\n", getpid());
+        fclose(f);
+    }
+    
+    return fd;
+}
+
 int main() {
+    int lock_fd = check_single_instance_or_toggle();
+    if (lock_fd < 0) {
+        // Signaled existing instance successfully, exit now.
+        return 0;
+    }
+
     // Catch SIGTERM, SIGINT, SIGHUP for clean exit
     struct sigaction sa;
     sa.sa_handler = signal_handler;
@@ -154,6 +200,9 @@ int main() {
     printf("0-board shutdown.\n");
     LOG_INFO("Shutdown complete.");
     DEBUG_CLEANUP();
+
+    unlink("/tmp/0-board.pid");
+    if (lock_fd > 0) close(lock_fd);
 
     return 0;
 }

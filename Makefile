@@ -1,3 +1,7 @@
+PREFIX ?= $(HOME)/.local
+BINDIR ?= $(PREFIX)/bin
+DATADIR ?= $(PREFIX)/share/0-board
+
 CC = gcc
 CFLAGS = -Wall -Wextra -O3 -flto -march=native -I./src \
          $(shell pkg-config --cflags cairo fontconfig freetype2)
@@ -14,36 +18,43 @@ SRC = src/layout.c src/keyboard.c src/keyboard_state.c src/colors.c src/config.c
 
 OBJ = $(SRC:.c=.o)
 TARGET = 0-board
+HELPERS = 0-board-touch-handler 0-board-lock-monitor
 
-all: $(TARGET)
+all: $(TARGET) $(HELPERS)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET) $(LIBS)
+
+0-board-touch-handler: src/0-board-touch-handler.c
+	$(CC) $(CFLAGS) $< -o $@ -lX11 -lXtst -lXi
+
+0-board-lock-monitor: src/0-board-lock-monitor.c
+	$(CC) $(CFLAGS) $< -o $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Development: debug symbols + logs
 debug: CFLAGS += -g -DDEBUG -O0
-debug: clean $(TARGET)
+debug: clean $(TARGET) $(HELPERS)
 
 # Production: max optimization, no logs
 release: CFLAGS += -DNDEBUG
-release: clean $(TARGET)
+release: clean $(TARGET) $(HELPERS)
 
 clean:
-	rm -f src/*.o $(TARGET)
+	rm -f src/*.o $(TARGET) $(HELPERS)
+
 install: release
 	install -d $(BINDIR) $(DATADIR)/fonts
 	install -m 755 0-board $(BINDIR)/
+	install -m 755 0-board-touch-handler $(BINDIR)/
+	install -m 755 0-board-lock-monitor $(BINDIR)/
 	install -m 644 assets/fonts/extras/ttf/Inter-Light.ttf $(DATADIR)/fonts/
 	install -m 644 assets/fonts/extras/ttf/Inter-Regular.ttf $(DATADIR)/fonts/
-	@echo "0-board installed to $(BINDIR)/"
+	@echo "0-board and native helpers installed to $(BINDIR)/"
 	@echo "Fonts installed to $(DATADIR)/fonts/"
 	@echo "Set font_dir = $(DATADIR)/fonts in ~/.config/0-board/config.ini for portable install"
-PREFIX ?= $(HOME)/.local
-BINDIR ?= $(PREFIX)/bin
-DATADIR ?= $(PREFIX)/share/0-board
 
 
 .PHONY: all debug release clean test install

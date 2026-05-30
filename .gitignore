@@ -1,5 +1,7 @@
 *.o
 0-board
+0-board-touch-handler
+0-board-lock-monitor
 .gemini/
 debug.log
 tests/test_keyboard_state
