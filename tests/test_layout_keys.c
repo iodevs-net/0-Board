@@ -14,7 +14,6 @@ int main() {
     TASSERT(layout->name != NULL, "layout has name");
 
     // Every key must have a valid keysym (except special keys)
-    int special_keys[] = { -1 }; // sentinel
     for (int i = 0; i < layout->num_keys; i++) {
         KeyDef *k = &layout->keys[i];
         if (k->normal == XK_VoidSymbol) {

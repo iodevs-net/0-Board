@@ -141,7 +141,13 @@ static void ensure_fonts_loaded(FontManager *fm) {
 
     FcConfigDestroy(cfg);
 
-    if (fm->font_count == 0) load_fallback_fonts(fm);
+    if (fm->font_count == 0) {
+        if (fm->fonts) {
+            free(fm->fonts);
+            fm->fonts = NULL;
+        }
+        load_fallback_fonts(fm);
+    }
 
     fm->fonts_loaded = true;
     select_initial_font(fm);

@@ -16,23 +16,7 @@ static bool rectangle_contains(Rectangle r, int x, int y) {
     return x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height;
 }
 
-/**
- * exec_async: Fork + exec a command non-blocking.
- * Returns PID of child, -1 on error.
- * Child runs in background, no zombie if we don't waitpid.
- * We set SIGCHLD to SIG_IGN in main() or handle properly.
- */
-static pid_t exec_async(const char *path, char *const argv[]) {
-    pid_t pid = fork();
-    if (pid == 0) {
-        // Child: exec the binary
-        setsid(); // New session so signals don't propagate
-        execvp(path, argv);
-        // If exec fails, exit silently
-        _exit(127);
-    }
-    return pid;
-}
+
 
 static bool is_on_edge(UI *ui, int wx, int wy) {
     int edge = 12;

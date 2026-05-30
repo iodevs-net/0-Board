@@ -5,7 +5,7 @@ LIBS = -lX11 -lXtst -lcairo -lfontconfig -lfreetype -lm
 
 # Source files
 SRC = src/layout.c src/keyboard.c src/keyboard_state.c src/colors.c src/config.c \
-      src/renderer.c src/cairo_renderer.c \
+      src/cairo_renderer.c \
       src/engine.c src/x11_window.c src/x11_events.c src/font_manager.c src/x11_cairo_bridge.c \
       src/ui.c src/ui_events.c src/ui_render_helper.c src/layout_engine.c \
       src/main.c src/debug.c \

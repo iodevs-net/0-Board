@@ -69,7 +69,6 @@ static int inject_key_sequence(Display *dpy, KeyCode kc, int ob_mods, Bool press
     // ob_mods: 0=none, 1=Shift, 4=AltGr, 5=Shift+AltGr, etc.
     // Uses XTest for Shift (always works) and XkbLockModifiers for
     // non-Shift modifiers (Mod4/Mod5) which XTest can't always activate.
-    static int last_mods = 0;
 
     if (pressed) {
         // For Shift, use XTest (works reliably)
@@ -100,7 +99,6 @@ static int inject_key_sequence(Display *dpy, KeyCode kc, int ob_mods, Bool press
         }
         XFlush(dpy);  // ENVIAR release al servidor X
     }
-    last_mods = ob_mods;
     return 0;
 }
 

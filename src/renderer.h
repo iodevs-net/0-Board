@@ -54,8 +54,6 @@ typedef struct {
     Color clear_color;
 } RendererConfig;
 
-// Create a renderer (implementation-specific)
-Renderer* renderer_create(RendererConfig *config);
 
 // Begin a new frame
 void renderer_begin_frame(Renderer *renderer);
