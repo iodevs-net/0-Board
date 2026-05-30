@@ -46,6 +46,9 @@ static KeyCode keysym_to_keycode(Display *dpy, KeySym sym, int *modifiers) {
     int layout_mods = 0;
     KeyCode kc = keysym_layout_resolve(dpy, sym, &layout_mods);
     if (kc) {
+        if (sym < 0xff00) {
+            *modifiers &= ~1; // Clear Shift from virtual layer selection
+        }
         *modifiers |= layout_mods;
         return kc;
     }
@@ -54,12 +57,20 @@ static KeyCode keysym_to_keycode(Display *dpy, KeySym sym, int *modifiers) {
     if (kc) return kc;
     if (sym >= XK_A && sym <= XK_Z) {
         kc = XKeysymToKeycode(dpy, sym - XK_A + XK_a);
-        if (kc) { *modifiers |= 1; return kc; }
+        if (kc) {
+            if (sym < 0xff00) *modifiers &= ~1;
+            *modifiers |= 1;
+            return kc;
+        }
     }
     KeySym base = keysym_get_base(sym);
     if (base) {
         kc = XKeysymToKeycode(dpy, base);
-        if (kc) { *modifiers |= 1; return kc; }
+        if (kc) {
+            if (sym < 0xff00) *modifiers &= ~1;
+            *modifiers |= 1;
+            return kc;
+        }
     }
     return 0;
 }
